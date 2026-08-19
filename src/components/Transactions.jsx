@@ -11,13 +11,20 @@ import {
   Receipt,
   Trash2,
   Wallet,
-  ArrowRightLeft
+  ArrowRightLeft,
+  CalendarDays
 } from 'lucide-react'
-import { formatMoney, currencySymbol, CURRENCIES } from '../lib/finance'
+import { formatMoney, currencySymbol, CURRENCIES, todayISO } from '../lib/finance'
 import { makeId } from '../lib/storage'
 
 const CATEGORY_LABELS = { needs: 'Needs', wants: 'Wants', savings: 'Savings' }
 const CATEGORY_ICONS = { needs: House, wants: ShoppingBag, savings: Landmark }
+
+function formatShortDate(iso) {
+  if (!iso) return ''
+  const d = new Date(`${iso}T00:00:00`)
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
 
 export default function Transactions({ currency, entries, onAdd, onRemove }) {
   const [type, setType] = useState('expense')
@@ -27,6 +34,7 @@ export default function Transactions({ currency, entries, onAdd, onRemove }) {
   const [recurring, setRecurring] = useState(false)
   const [txnCurrency, setTxnCurrency] = useState(currency)
   const [rate, setRate] = useState('')
+  const [date, setDate] = useState(todayISO)
 
   useEffect(() => {
     setTxnCurrency(currency)
@@ -52,7 +60,8 @@ export default function Transactions({ currency, entries, onAdd, onRemove }) {
         amount: parsedAmount,
         type,
         category: type === 'income' ? null : category,
-        recurring
+        recurring,
+        date
       })
     } else {
       if (!parsedAmount || parsedAmount <= 0 || !parsedRate || parsedRate <= 0) return
@@ -63,6 +72,7 @@ export default function Transactions({ currency, entries, onAdd, onRemove }) {
         type,
         category: type === 'income' ? null : category,
         recurring,
+        date,
         foreignCurrency: txnCurrency,
         foreignAmount: parsedAmount,
         exchangeRate: parsedRate
@@ -73,9 +83,10 @@ export default function Transactions({ currency, entries, onAdd, onRemove }) {
     setRate('')
     setRecurring(false)
     setTxnCurrency(currency)
+    setDate(todayISO())
   }
 
-  const sorted = [...entries].reverse()
+  const sorted = [...entries].reverse().sort((a, b) => (b.date || '').localeCompare(a.date || ''))
 
   return (
     <div className="space-y-4">
@@ -108,17 +119,32 @@ export default function Transactions({ currency, entries, onAdd, onRemove }) {
           </button>
         </div>
 
-        <div>
-          <label className="flex items-center gap-1 text-xs text-muted mb-1">
-            <Tag size={12} />
-            Name
-          </label>
-          <input
-            className="w-full border-b hairline bg-transparent py-2 text-base focus:outline-none focus:border-emerald"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={type === 'income' ? 'e.g. Salary' : 'e.g. Groceries'}
-          />
+        <div className="grid grid-cols-[1fr_auto] gap-2">
+          <div>
+            <label className="flex items-center gap-1 text-xs text-muted mb-1">
+              <Tag size={12} />
+              Name
+            </label>
+            <input
+              className="w-full border-b hairline bg-transparent py-2 text-base focus:outline-none focus:border-emerald"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={type === 'income' ? 'e.g. Salary' : 'e.g. Groceries'}
+            />
+          </div>
+          <div>
+            <label className="flex items-center gap-1 text-xs text-muted mb-1">
+              <CalendarDays size={12} />
+              Date
+            </label>
+            <input
+              type="date"
+              value={date}
+              max={todayISO()}
+              onChange={(e) => setDate(e.target.value)}
+              className="num border-b hairline bg-transparent py-2 text-sm focus:outline-none focus:border-emerald"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
@@ -234,6 +260,7 @@ export default function Transactions({ currency, entries, onAdd, onRemove }) {
                   <div className="text-sm truncate">{entry.name}</div>
                   <div className="text-xs text-muted flex items-center gap-1 flex-wrap">
                     {entry.type === 'income' ? 'Income' : CATEGORY_LABELS[entry.category]}
+                    {entry.date && <span className="num">· {formatShortDate(entry.date)}</span>}
                     {entry.recurring && (
                       <span className="flex items-center gap-0.5">
                         <Repeat size={10} /> recurring

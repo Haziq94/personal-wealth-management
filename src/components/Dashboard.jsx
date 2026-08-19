@@ -1,5 +1,14 @@
-import { ArrowDownCircle, ArrowUpCircle, Wallet, TriangleAlert, CircleAlert, Sparkles, ArrowRight } from 'lucide-react'
-import { getAllocation, getInvestmentGuidance, getGreeting, totalIncome, totalSpent, formatMoney } from '../lib/finance'
+import { ArrowDownCircle, ArrowUpCircle, Wallet, TriangleAlert, CircleAlert, Sparkles, ArrowRight, CalendarRange } from 'lucide-react'
+import {
+  getAllocation,
+  getInvestmentGuidance,
+  getGreeting,
+  getPeriodStart,
+  getCurrentPeriodEntries,
+  totalIncome,
+  totalSpent,
+  formatMoney
+} from '../lib/finance'
 import AllocationBar from './AllocationBar'
 
 const TONE_STYLES = {
@@ -8,12 +17,18 @@ const TONE_STYLES = {
   good: { box: 'border-emerald bg-emerald/5 text-emerald', icon: Sparkles }
 }
 
+function formatDate(iso) {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
 export default function Dashboard({ name, currency, entries, goals, onGoToTransactions }) {
-  const income = totalIncome(entries)
-  const spent = totalSpent(entries)
+  const periodStart = getPeriodStart(entries)
+  const periodEntries = getCurrentPeriodEntries(entries)
+  const income = totalIncome(periodEntries)
+  const spent = totalSpent(periodEntries)
   const remaining = income - spent
-  const allocation = getAllocation(entries, income)
-  const guidance = getInvestmentGuidance(entries, goals, income, name)
+  const allocation = getAllocation(periodEntries, income)
+  const guidance = getInvestmentGuidance(periodEntries, goals, income, name)
   const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
   const ToneIcon = TONE_STYLES[guidance.tone].icon
 
@@ -25,6 +40,13 @@ export default function Dashboard({ name, currency, entries, goals, onGoToTransa
         </h2>
         <p className="text-xs text-muted num">{today}</p>
       </div>
+
+      {periodStart && (
+        <div className="flex items-center gap-1.5 text-xs text-muted">
+          <CalendarRange size={13} />
+          Current pay period: <span className="num text-ink">{formatDate(periodStart)} – today</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-px bg-ink/10 border hairline">
         <div className="bg-surface p-3">

@@ -1,4 +1,4 @@
-import { CURRENCIES, DEFAULT_CURRENCY } from './finance'
+import { CURRENCIES, DEFAULT_CURRENCY, todayISO } from './finance'
 
 const STORAGE_KEY = 'wealth-ledger:v1'
 
@@ -21,6 +21,7 @@ function normalizeEntries(rawEntries, legacyIncome) {
     type: e.type === 'income' ? 'income' : 'expense',
     category: e.type === 'income' ? null : e.category ?? 'needs',
     recurring: !!e.recurring,
+    date: typeof e.date === 'string' ? e.date : todayISO(),
     ...(e.foreignCurrency && typeof e.foreignAmount === 'number' && typeof e.exchangeRate === 'number'
       ? { foreignCurrency: e.foreignCurrency, foreignAmount: e.foreignAmount, exchangeRate: e.exchangeRate }
       : {})
@@ -34,7 +35,8 @@ function normalizeEntries(rawEntries, legacyIncome) {
       amount: legacyIncome,
       type: 'income',
       category: null,
-      recurring: true
+      recurring: true,
+      date: todayISO()
     })
   }
 
@@ -65,12 +67,12 @@ export function exportState(state) {
   const payload = {
     ...state,
     exportedAt: new Date().toISOString(),
-    schema: 4
+    schema: 5
   }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  const date = new Date().toISOString().slice(0, 10)
+  const date = todayISO()
   a.href = url
   a.download = `wealth-ledger-backup-${date}.json`
   document.body.appendChild(a)
