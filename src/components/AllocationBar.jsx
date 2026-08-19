@@ -2,7 +2,7 @@ import { House, ShoppingBag, PiggyBank, Scale } from 'lucide-react'
 import { formatPct } from '../lib/finance'
 
 const LABELS = { needs: 'Needs', wants: 'Wants', savings: 'Savings' }
-const COLORS = { needs: '#1B2430', wants: '#B5482C', savings: '#2F6F4E' }
+const COLORS = { needs: 'var(--color-cat-needs)', wants: 'var(--color-cat-wants)', savings: 'var(--color-cat-savings)' }
 const ICONS = { needs: House, wants: ShoppingBag, savings: PiggyBank }
 
 function Row({ cat, data }) {

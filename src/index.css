@@ -4,6 +4,38 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-paper: 246 245 241;
+  --color-surface: 255 255 255;
+  --color-ink: 27 36 48;
+  --color-emerald: 47 111 78;
+  --color-rust: 181 72 44;
+  --color-muted: 138 143 152;
+
+  --color-cat-needs: #1b2430;
+  --color-cat-wants: #b5482c;
+  --color-cat-savings: #2f6f4e;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-paper: 18 20 24;
+    --color-surface: 27 30 35;
+    --color-ink: 235 233 227;
+    --color-emerald: 90 176 137;
+    --color-rust: 224 132 108;
+    --color-muted: 148 153 161;
+
+    --color-cat-needs: #ebe9e3;
+    --color-cat-wants: #e0846c;
+    --color-cat-savings: #5ab089;
+
+    color-scheme: dark;
+  }
+}
+
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
@@ -24,6 +56,6 @@
     font-variant-numeric: tabular-nums;
   }
   .hairline {
-    border-color: rgba(27, 36, 48, 0.1);
+    border-color: rgb(var(--color-ink) / 0.12);
   }
 }

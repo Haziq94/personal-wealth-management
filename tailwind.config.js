@@ -4,12 +4,12 @@ export default {
   theme: {
     extend: {
       colors: {
-        paper: '#F6F5F1',
-        surface: '#FFFFFF',
-        ink: '#1B2430',
-        emerald: '#2F6F4E',
-        rust: '#B5482C',
-        muted: '#8A8F98'
+        paper: 'rgb(var(--color-paper) / <alpha-value>)',
+        surface: 'rgb(var(--color-surface) / <alpha-value>)',
+        ink: 'rgb(var(--color-ink) / <alpha-value>)',
+        emerald: 'rgb(var(--color-emerald) / <alpha-value>)',
+        rust: 'rgb(var(--color-rust) / <alpha-value>)',
+        muted: 'rgb(var(--color-muted) / <alpha-value>)'
       },
       fontFamily: {
         display: ['Newsreader', 'Georgia', 'serif'],
