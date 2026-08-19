@@ -1,4 +1,4 @@
-import { getAllocation, getInvestmentGuidance, totalSpent, formatMoney } from '../lib/finance'
+import { getAllocation, getInvestmentGuidance, getGreeting, totalSpent, formatMoney } from '../lib/finance'
 import AllocationBar from './AllocationBar'
 
 const TONE_STYLES = {
@@ -7,14 +7,22 @@ const TONE_STYLES = {
   good: 'border-emerald bg-emerald/5 text-emerald'
 }
 
-export default function Dashboard({ income, entries, goals, onIncomeChange }) {
+export default function Dashboard({ name, income, entries, goals, onIncomeChange }) {
   const spent = totalSpent(entries)
   const remaining = income - spent
   const allocation = getAllocation(entries, income)
-  const guidance = getInvestmentGuidance(entries, goals, income)
+  const guidance = getInvestmentGuidance(entries, goals, income, name)
+  const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
 
   return (
     <div className="space-y-4">
+      <div>
+        <h2 className="font-display text-2xl leading-tight">
+          {getGreeting()} {name || 'there'}
+        </h2>
+        <p className="text-xs text-muted num">{today}</p>
+      </div>
+
       <div className="bg-surface border hairline p-4">
         <label className="block text-xs text-muted mb-1">Monthly income</label>
         <div className="flex items-center gap-2">

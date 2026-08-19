@@ -1,6 +1,7 @@
 const STORAGE_KEY = 'wealth-ledger:v1'
 
 const DEFAULT_STATE = {
+  name: 'Haziq',
   income: 0,
   entries: [],
   goals: []
@@ -12,6 +13,7 @@ export function loadState() {
     if (!raw) return { ...DEFAULT_STATE }
     const parsed = JSON.parse(raw)
     return {
+      name: typeof parsed.name === 'string' ? parsed.name : DEFAULT_STATE.name,
       income: typeof parsed.income === 'number' ? parsed.income : 0,
       entries: Array.isArray(parsed.entries) ? parsed.entries : [],
       goals: Array.isArray(parsed.goals) ? parsed.goals : []
@@ -54,6 +56,7 @@ export function importState(file) {
           return
         }
         resolve({
+          name: typeof parsed.name === 'string' ? parsed.name : DEFAULT_STATE.name,
           income: parsed.income,
           entries: parsed.entries,
           goals: parsed.goals

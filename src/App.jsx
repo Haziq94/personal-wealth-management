@@ -17,6 +17,7 @@ export default function App() {
   const [state, setState] = useState(loadState)
   const [tab, setTab] = useState('dashboard')
   const [importError, setImportError] = useState('')
+  const [editingName, setEditingName] = useState(false)
   const fileInputRef = useRef(null)
 
   useEffect(() => {
@@ -25,6 +26,10 @@ export default function App() {
 
   function handleIncomeChange(income) {
     setState((s) => ({ ...s, income }))
+  }
+
+  function handleNameChange(name) {
+    setState((s) => ({ ...s, name }))
   }
 
   function handleAddEntry(entry) {
@@ -66,7 +71,12 @@ export default function App() {
       <header className="bg-surface border-b hairline sticky top-0 z-10">
         <div className="px-4 pt-4 pb-3 flex items-center justify-between">
           <div>
-            <div className="text-xs text-muted tracking-wide uppercase">Ledger</div>
+            <button
+              onClick={() => setEditingName(true)}
+              className="text-xs text-muted tracking-wide uppercase hover:text-ink"
+            >
+              Ledger · {state.name || 'set your name'}
+            </button>
             <h1 className="font-display text-xl">{TITLES[tab]}</h1>
           </div>
           <div className="flex gap-3 text-xs text-muted">
@@ -79,12 +89,33 @@ export default function App() {
             <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={handleImportFile} />
           </div>
         </div>
+        {editingName && (
+          <div className="px-4 pb-3 flex items-center gap-2">
+            <input
+              autoFocus
+              className="flex-1 border-b hairline bg-transparent py-1 text-sm focus:outline-none focus:border-emerald"
+              value={state.name}
+              placeholder="Your name"
+              onChange={(e) => handleNameChange(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && setEditingName(false)}
+            />
+            <button onClick={() => setEditingName(false)} className="text-xs text-emerald">
+              Done
+            </button>
+          </div>
+        )}
         {importError && <div className="px-4 pb-2 text-xs text-rust">{importError}</div>}
       </header>
 
       <main className="p-4 max-w-md mx-auto">
         {tab === 'dashboard' && (
-          <Dashboard income={state.income} entries={state.entries} goals={state.goals} onIncomeChange={handleIncomeChange} />
+          <Dashboard
+            name={state.name}
+            income={state.income}
+            entries={state.entries}
+            goals={state.goals}
+            onIncomeChange={handleIncomeChange}
+          />
         )}
         {tab === 'spending' && <Spending entries={state.entries} onAdd={handleAddEntry} onRemove={handleRemoveEntry} />}
         {tab === 'commitments' && <Commitments entries={state.entries} />}

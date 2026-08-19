@@ -32,34 +32,45 @@ export function getCommitments(entries) {
   }
 }
 
-export function getInvestmentGuidance(entries, goals, income) {
+export function getInvestmentGuidance(entries, goals, income, name = '') {
   const spent = totalSpent(entries)
   const remaining = income - spent
   const savingsRate = income > 0 ? sumByCategory(entries, 'savings') / income : 0
   const emergencyGoal = goals.find((g) => g.name.toLowerCase().includes('emergency'))
+  const you = name ? `${name}, ` : ''
+  const cap = (s) => (you ? s : s.charAt(0).toUpperCase() + s.slice(1))
 
   if (remaining < 0) {
     return {
       tone: 'warning',
-      message: "You've spent more than you earned this month. Trim Wants spending first before anything else."
+      message: `${you}${cap("you've spent more than you earned this month. Trim Wants spending first before anything else.")}`
     }
   }
   if (savingsRate < TARGETS.savings) {
     return {
       tone: 'caution',
-      message: `Savings are at ${(savingsRate * 100).toFixed(0)}% of income. Aim to raise Savings toward 20% before investing more.`
+      message: `${you}${cap(`savings are at ${(savingsRate * 100).toFixed(0)}% of income. Aim to raise Savings toward 20% before investing more.`)}`
     }
   }
   if (!emergencyGoal || emergencyGoal.saved < emergencyGoal.target) {
     return {
       tone: 'caution',
-      message: 'Build 3–6 months of essential expenses into an emergency fund before investing your surplus.'
+      message: `${you}${cap('build 3–6 months of essential expenses into an emergency fund before investing your surplus.')}`
     }
   }
   return {
     tone: 'good',
-    message: 'Savings are healthy and your emergency fund is covered. Consider directing monthly surplus into diversified, low-cost investments.'
+    message: `${you}${cap('savings are healthy and your emergency fund is covered. Consider directing monthly surplus into diversified, low-cost investments.')}`
   }
+}
+
+export function getGreeting(date = new Date()) {
+  const hour = date.getHours()
+  if (hour < 5) return 'Burning the midnight oil,'
+  if (hour < 12) return 'Good morning,'
+  if (hour < 17) return 'Good afternoon,'
+  if (hour < 21) return 'Good evening,'
+  return 'Working late,'
 }
 
 export function formatMoney(n) {
