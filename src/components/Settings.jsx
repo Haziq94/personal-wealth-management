@@ -38,9 +38,9 @@ export default function Settings({ state, onNameChange, onCurrencyChange, onExpo
       <div className="bg-surface border hairline p-4 space-y-2">
         <h3 className="font-display text-base flex items-center gap-1.5">
           <Coins size={18} className="text-emerald" strokeWidth={1.75} />
-          Currency
+          Home currency
         </h3>
-        <label className="block text-xs text-muted mb-1">All amounts are shown in</label>
+        <label className="block text-xs text-muted mb-1">All totals are calculated in</label>
         <div className="relative">
           <select
             value={state.currency}
@@ -55,7 +55,10 @@ export default function Settings({ state, onNameChange, onCurrencyChange, onExpo
           </select>
           <ChevronDown size={16} className="absolute right-0 top-2.5 text-muted pointer-events-none" />
         </div>
-        <p className="text-xs text-muted">Changes the symbol shown everywhere — amounts themselves aren&apos;t converted.</p>
+        <p className="text-xs text-muted">
+          Used for Dashboard, allocation and guidance totals. When logging a transaction in another currency, enter
+          the exchange rate at the time and it's converted to this currency automatically.
+        </p>
       </div>
 
       <div className="bg-surface border hairline p-4 space-y-3">

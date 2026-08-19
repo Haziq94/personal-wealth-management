@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ArrowUpCircle,
   ArrowDownCircle,
@@ -10,9 +10,10 @@ import {
   ListPlus,
   Receipt,
   Trash2,
-  Wallet
+  Wallet,
+  ArrowRightLeft
 } from 'lucide-react'
-import { formatMoney, currencySymbol } from '../lib/finance'
+import { formatMoney, currencySymbol, CURRENCIES } from '../lib/finance'
 import { makeId } from '../lib/storage'
 
 const CATEGORY_LABELS = { needs: 'Needs', wants: 'Wants', savings: 'Savings' }
@@ -24,22 +25,54 @@ export default function Transactions({ currency, entries, onAdd, onRemove }) {
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState('needs')
   const [recurring, setRecurring] = useState(false)
+  const [txnCurrency, setTxnCurrency] = useState(currency)
+  const [rate, setRate] = useState('')
+
+  useEffect(() => {
+    setTxnCurrency(currency)
+  }, [currency])
+
+  const isForeign = txnCurrency !== currency
+  const parsedAmount = parseFloat(amount)
+  const parsedRate = parseFloat(rate)
+  const homeAmount = isForeign
+    ? parsedAmount > 0 && parsedRate > 0
+      ? parsedAmount * parsedRate
+      : null
+    : parsedAmount
 
   function handleSubmit(e) {
     e.preventDefault()
-    const parsed = parseFloat(amount)
-    if (!name.trim() || !parsed || parsed <= 0) return
-    onAdd({
-      id: makeId(),
-      name: name.trim(),
-      amount: parsed,
-      type,
-      category: type === 'income' ? null : category,
-      recurring
-    })
+    if (!name.trim()) return
+    if (!isForeign) {
+      if (!parsedAmount || parsedAmount <= 0) return
+      onAdd({
+        id: makeId(),
+        name: name.trim(),
+        amount: parsedAmount,
+        type,
+        category: type === 'income' ? null : category,
+        recurring
+      })
+    } else {
+      if (!parsedAmount || parsedAmount <= 0 || !parsedRate || parsedRate <= 0) return
+      onAdd({
+        id: makeId(),
+        name: name.trim(),
+        amount: Math.round(homeAmount * 100) / 100,
+        type,
+        category: type === 'income' ? null : category,
+        recurring,
+        foreignCurrency: txnCurrency,
+        foreignAmount: parsedAmount,
+        exchangeRate: parsedRate
+      })
+    }
     setName('')
     setAmount('')
+    setRate('')
     setRecurring(false)
+    setTxnCurrency(currency)
   }
 
   const sorted = [...entries].reverse()
@@ -87,23 +120,64 @@ export default function Transactions({ currency, entries, onAdd, onRemove }) {
             placeholder={type === 'income' ? 'e.g. Salary' : 'e.g. Groceries'}
           />
         </div>
-        <div>
-          <label className="flex items-center gap-1 text-xs text-muted mb-1">
-            <Wallet size={12} />
-            Amount
-          </label>
-          <div className="flex items-center gap-2">
-            <span className="num text-base text-muted">{currencySymbol(currency)}</span>
+
+        <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
+          <div>
+            <label className="flex items-center gap-1 text-xs text-muted mb-1">
+              <Wallet size={12} />
+              Amount {isForeign && `(${txnCurrency})`}
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="num text-base text-muted">{currencySymbol(txnCurrency)}</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                className="num flex-1 border-b hairline bg-transparent py-2 text-base focus:outline-none focus:border-emerald"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-muted mb-1">Currency</label>
+            <select
+              value={txnCurrency}
+              onChange={(e) => setTxnCurrency(e.target.value)}
+              className="border-b hairline bg-transparent py-2 text-sm focus:outline-none focus:border-emerald"
+            >
+              {Object.keys(CURRENCIES).map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {isForeign && (
+          <div className="bg-paper border hairline p-3 space-y-2">
+            <label className="flex items-center gap-1 text-xs text-muted">
+              <ArrowRightLeft size={12} />
+              Exchange rate — 1 {txnCurrency} = ? {currency}
+            </label>
             <input
               type="number"
               inputMode="decimal"
-              className="num flex-1 border-b hairline bg-transparent py-2 text-base focus:outline-none focus:border-emerald"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
+              step="0.0001"
+              className="num w-full border-b hairline bg-transparent py-2 text-base focus:outline-none focus:border-emerald"
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+              placeholder="e.g. 4.70"
             />
+            <p className="text-xs text-muted">
+              Use the rate at the time of this transaction.{' '}
+              {homeAmount !== null && (
+                <span className="num text-ink">≈ {formatMoney(homeAmount, currency)}</span>
+              )}
+            </p>
           </div>
-        </div>
+        )}
 
         {type === 'expense' && (
           <div>
@@ -158,11 +232,17 @@ export default function Transactions({ currency, entries, onAdd, onRemove }) {
                 <CatIcon size={18} className={entry.type === 'income' ? 'text-emerald shrink-0' : 'text-muted shrink-0'} strokeWidth={1.75} />
                 <div className="min-w-0">
                   <div className="text-sm truncate">{entry.name}</div>
-                  <div className="text-xs text-muted flex items-center gap-1">
+                  <div className="text-xs text-muted flex items-center gap-1 flex-wrap">
                     {entry.type === 'income' ? 'Income' : CATEGORY_LABELS[entry.category]}
                     {entry.recurring && (
                       <span className="flex items-center gap-0.5">
                         <Repeat size={10} /> recurring
+                      </span>
+                    )}
+                    {entry.foreignCurrency && (
+                      <span className="num flex items-center gap-0.5">
+                        <ArrowRightLeft size={10} />
+                        {currencySymbol(entry.foreignCurrency)} {entry.foreignAmount.toFixed(2)} @ {entry.exchangeRate}
                       </span>
                     )}
                   </div>

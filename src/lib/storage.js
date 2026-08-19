@@ -20,7 +20,10 @@ function normalizeEntries(rawEntries, legacyIncome) {
     amount: e.amount,
     type: e.type === 'income' ? 'income' : 'expense',
     category: e.type === 'income' ? null : e.category ?? 'needs',
-    recurring: !!e.recurring
+    recurring: !!e.recurring,
+    ...(e.foreignCurrency && typeof e.foreignAmount === 'number' && typeof e.exchangeRate === 'number'
+      ? { foreignCurrency: e.foreignCurrency, foreignAmount: e.foreignAmount, exchangeRate: e.exchangeRate }
+      : {})
   }))
 
   const hasIncomeEntry = entries.some((e) => e.type === 'income')
@@ -62,7 +65,7 @@ export function exportState(state) {
   const payload = {
     ...state,
     exportedAt: new Date().toISOString(),
-    schema: 3
+    schema: 4
   }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
