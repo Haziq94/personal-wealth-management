@@ -1,9 +1,9 @@
-import { House, ShoppingBag, PiggyBank, Scale } from 'lucide-react'
+import { House, ShoppingBag, Landmark, Scale } from 'lucide-react'
 import { formatPct } from '../lib/finance'
 
 const LABELS = { needs: 'Needs', wants: 'Wants', savings: 'Savings' }
 const COLORS = { needs: 'var(--color-cat-needs)', wants: 'var(--color-cat-wants)', savings: 'var(--color-cat-savings)' }
-const ICONS = { needs: House, wants: ShoppingBag, savings: PiggyBank }
+const ICONS = { needs: House, wants: ShoppingBag, savings: Landmark }
 
 function Row({ cat, data }) {
   const barWidth = Math.min((data.pct / (data.target * 1.5)) * 100, 100)

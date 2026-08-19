@@ -1,8 +1,8 @@
-import { Repeat, House, ShoppingBag, PiggyBank, CalendarClock } from 'lucide-react'
+import { Repeat, House, ShoppingBag, Landmark, CalendarClock } from 'lucide-react'
 import { getCommitments, formatMoney } from '../lib/finance'
 
 const CATEGORY_LABELS = { needs: 'Needs', wants: 'Wants', savings: 'Savings' }
-const CATEGORY_ICONS = { needs: House, wants: ShoppingBag, savings: PiggyBank }
+const CATEGORY_ICONS = { needs: House, wants: ShoppingBag, savings: Landmark }
 
 export default function Commitments({ entries }) {
   const { entries: recurring, total } = getCommitments(entries)

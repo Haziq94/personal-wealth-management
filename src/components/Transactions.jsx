@@ -5,7 +5,7 @@ import {
   Tag,
   House,
   ShoppingBag,
-  PiggyBank,
+  Landmark,
   Repeat,
   ListPlus,
   Receipt,
@@ -16,7 +16,7 @@ import { formatMoney } from '../lib/finance'
 import { makeId } from '../lib/storage'
 
 const CATEGORY_LABELS = { needs: 'Needs', wants: 'Wants', savings: 'Savings' }
-const CATEGORY_ICONS = { needs: House, wants: ShoppingBag, savings: PiggyBank }
+const CATEGORY_ICONS = { needs: House, wants: ShoppingBag, savings: Landmark }
 
 export default function Transactions({ entries, onAdd, onRemove }) {
   const [type, setType] = useState('expense')
