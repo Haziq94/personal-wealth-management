@@ -1,10 +1,11 @@
-import { LayoutDashboard, ArrowLeftRight, Repeat, Landmark } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, Repeat, Landmark, Settings as SettingsIcon } from 'lucide-react'
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'transactions', label: 'Transactions', icon: ArrowLeftRight },
   { id: 'commitments', label: 'Commitments', icon: Repeat },
-  { id: 'savings', label: 'Savings', icon: Landmark }
+  { id: 'savings', label: 'Savings', icon: Landmark },
+  { id: 'settings', label: 'Settings', icon: SettingsIcon }
 ]
 
 export default function NavBar({ active, onChange }) {
