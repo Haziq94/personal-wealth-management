@@ -12,13 +12,13 @@ import {
   Trash2,
   Wallet
 } from 'lucide-react'
-import { formatMoney } from '../lib/finance'
+import { formatMoney, currencySymbol } from '../lib/finance'
 import { makeId } from '../lib/storage'
 
 const CATEGORY_LABELS = { needs: 'Needs', wants: 'Wants', savings: 'Savings' }
 const CATEGORY_ICONS = { needs: House, wants: ShoppingBag, savings: Landmark }
 
-export default function Transactions({ entries, onAdd, onRemove }) {
+export default function Transactions({ currency, entries, onAdd, onRemove }) {
   const [type, setType] = useState('expense')
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
@@ -93,7 +93,7 @@ export default function Transactions({ entries, onAdd, onRemove }) {
             Amount
           </label>
           <div className="flex items-center gap-2">
-            <span className="num text-base text-muted">$</span>
+            <span className="num text-base text-muted">{currencySymbol(currency)}</span>
             <input
               type="number"
               inputMode="decimal"
@@ -171,7 +171,7 @@ export default function Transactions({ entries, onAdd, onRemove }) {
               <div className="flex items-center gap-3 shrink-0">
                 <span className={`num text-sm ${entry.type === 'income' ? 'text-emerald' : 'text-ink'}`}>
                   {entry.type === 'income' ? '+' : '-'}
-                  {formatMoney(entry.amount)}
+                  {formatMoney(entry.amount, currency)}
                 </span>
                 <button
                   onClick={() => onRemove(entry.id)}

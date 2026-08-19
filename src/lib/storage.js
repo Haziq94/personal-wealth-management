@@ -1,9 +1,16 @@
+import { CURRENCIES, DEFAULT_CURRENCY } from './finance'
+
 const STORAGE_KEY = 'wealth-ledger:v1'
 
 const DEFAULT_STATE = {
   name: 'Haziq',
+  currency: DEFAULT_CURRENCY,
   entries: [],
   goals: []
+}
+
+function normalizeCurrency(currency) {
+  return typeof currency === 'string' && CURRENCIES[currency] ? currency : DEFAULT_CURRENCY
 }
 
 function normalizeEntries(rawEntries, legacyIncome) {
@@ -38,6 +45,7 @@ export function loadState() {
     const parsed = JSON.parse(raw)
     return {
       name: typeof parsed.name === 'string' ? parsed.name : DEFAULT_STATE.name,
+      currency: normalizeCurrency(parsed.currency),
       entries: normalizeEntries(parsed.entries, parsed.income),
       goals: Array.isArray(parsed.goals) ? parsed.goals : []
     }
@@ -54,7 +62,7 @@ export function exportState(state) {
   const payload = {
     ...state,
     exportedAt: new Date().toISOString(),
-    schema: 2
+    schema: 3
   }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -80,6 +88,7 @@ export function importState(file) {
         }
         resolve({
           name: typeof parsed.name === 'string' ? parsed.name : DEFAULT_STATE.name,
+          currency: normalizeCurrency(parsed.currency),
           entries: normalizeEntries(parsed.entries, parsed.income),
           goals: parsed.goals
         })

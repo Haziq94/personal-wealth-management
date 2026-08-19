@@ -8,7 +8,7 @@ const TONE_STYLES = {
   good: { box: 'border-emerald bg-emerald/5 text-emerald', icon: Sparkles }
 }
 
-export default function Dashboard({ name, entries, goals, onGoToTransactions }) {
+export default function Dashboard({ name, currency, entries, goals, onGoToTransactions }) {
   const income = totalIncome(entries)
   const spent = totalSpent(entries)
   const remaining = income - spent
@@ -32,21 +32,21 @@ export default function Dashboard({ name, entries, goals, onGoToTransactions }) 
             <ArrowUpCircle size={13} className="text-emerald" />
             Income
           </div>
-          <div className="num text-sm">{formatMoney(income)}</div>
+          <div className="num text-sm">{formatMoney(income, currency)}</div>
         </div>
         <div className="bg-surface p-3">
           <div className="flex items-center gap-1 text-xs text-muted mb-1">
             <ArrowDownCircle size={13} className="text-rust" />
             Spent
           </div>
-          <div className="num text-sm">{formatMoney(spent)}</div>
+          <div className="num text-sm">{formatMoney(spent, currency)}</div>
         </div>
         <div className="bg-surface p-3">
           <div className="flex items-center gap-1 text-xs text-muted mb-1">
             <Wallet size={13} />
             Left
           </div>
-          <div className={`num text-sm ${remaining < 0 ? 'text-rust' : 'text-emerald'}`}>{formatMoney(remaining)}</div>
+          <div className={`num text-sm ${remaining < 0 ? 'text-rust' : 'text-emerald'}`}>{formatMoney(remaining, currency)}</div>
         </div>
       </div>
 

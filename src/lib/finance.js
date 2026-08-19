@@ -1,3 +1,19 @@
+export const DEFAULT_CURRENCY = 'MYR'
+
+export const CURRENCIES = {
+  MYR: { symbol: 'RM', name: 'Malaysian Ringgit' },
+  USD: { symbol: '$', name: 'US Dollar' },
+  SGD: { symbol: 'S$', name: 'Singapore Dollar' },
+  EUR: { symbol: '€', name: 'Euro' },
+  GBP: { symbol: '£', name: 'British Pound' },
+  AUD: { symbol: 'A$', name: 'Australian Dollar' },
+  IDR: { symbol: 'Rp', name: 'Indonesian Rupiah' },
+  THB: { symbol: '฿', name: 'Thai Baht' },
+  JPY: { symbol: '¥', name: 'Japanese Yen' },
+  CNY: { symbol: '¥', name: 'Chinese Yuan' },
+  INR: { symbol: '₹', name: 'Indian Rupee' }
+}
+
 export const CATEGORIES = ['needs', 'wants', 'savings']
 
 export const TARGETS = { needs: 0.5, wants: 0.3, savings: 0.2 }
@@ -91,9 +107,14 @@ export function getGreeting(date = new Date()) {
   return 'Working late,'
 }
 
-export function formatMoney(n) {
+export function currencySymbol(currency = DEFAULT_CURRENCY) {
+  return CURRENCIES[currency]?.symbol ?? currency
+}
+
+export function formatMoney(n, currency = DEFAULT_CURRENCY) {
   const sign = n < 0 ? '-' : ''
-  return `${sign}$${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const symbol = currencySymbol(currency)
+  return `${sign}${symbol} ${Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 export function formatPct(n) {

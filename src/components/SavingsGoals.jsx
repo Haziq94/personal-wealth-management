@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Target, LifeBuoy, Trash2, Wallet, PiggyBank, Info } from 'lucide-react'
-import { formatMoney, formatPct } from '../lib/finance'
+import { formatMoney, formatPct, currencySymbol } from '../lib/finance'
 import { makeId } from '../lib/storage'
 
 function goalIcon(name) {
   return name.toLowerCase().includes('emergency') ? LifeBuoy : Target
 }
 
-export default function SavingsGoals({ goals, onAdd, onRemove, onUpdateSaved }) {
+export default function SavingsGoals({ currency, goals, onAdd, onRemove, onUpdateSaved }) {
   const [name, setName] = useState('')
   const [target, setTarget] = useState('')
 
@@ -45,7 +45,7 @@ export default function SavingsGoals({ goals, onAdd, onRemove, onUpdateSaved }) 
             Target amount
           </label>
           <div className="flex items-center gap-2">
-            <span className="num text-base text-muted">$</span>
+            <span className="num text-base text-muted">{currencySymbol(currency)}</span>
             <input
               type="number"
               inputMode="decimal"
@@ -92,7 +92,7 @@ export default function SavingsGoals({ goals, onAdd, onRemove, onUpdateSaved }) 
               </div>
               <div className="flex items-baseline justify-between mb-1.5">
                 <span className="num text-sm">
-                  {formatMoney(goal.saved)} <span className="text-muted">/ {formatMoney(goal.target)}</span>
+                  {formatMoney(goal.saved, currency)} <span className="text-muted">/ {formatMoney(goal.target, currency)}</span>
                 </span>
                 <span className="num text-xs text-muted">{formatPct(pct)}</span>
               </div>

@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
-import { UserRound, Download, Upload, Smartphone, Check } from 'lucide-react'
+import { UserRound, Download, Upload, Smartphone, Check, Coins, ChevronDown } from 'lucide-react'
+import { CURRENCIES } from '../lib/finance'
 
-export default function Settings({ state, onNameChange, onExport, onImport, importError }) {
+export default function Settings({ state, onNameChange, onCurrencyChange, onExport, onImport, importError }) {
   const [name, setName] = useState(state.name)
   const [saved, setSaved] = useState(false)
   const fileInputRef = useRef(null)
@@ -32,6 +33,29 @@ export default function Settings({ state, onNameChange, onExport, onImport, impo
           {saved && <Check size={16} className="text-emerald shrink-0" />}
         </div>
         <p className="text-xs text-muted">Used for greetings and guidance messages around the app.</p>
+      </div>
+
+      <div className="bg-surface border hairline p-4 space-y-2">
+        <h3 className="font-display text-base flex items-center gap-1.5">
+          <Coins size={18} className="text-emerald" strokeWidth={1.75} />
+          Currency
+        </h3>
+        <label className="block text-xs text-muted mb-1">All amounts are shown in</label>
+        <div className="relative">
+          <select
+            value={state.currency}
+            onChange={(e) => onCurrencyChange(e.target.value)}
+            className="w-full appearance-none border-b hairline bg-transparent py-2 pr-6 text-base focus:outline-none focus:border-emerald"
+          >
+            {Object.entries(CURRENCIES).map(([code, { symbol, name: currencyName }]) => (
+              <option key={code} value={code}>
+                {code} — {currencyName} ({symbol})
+              </option>
+            ))}
+          </select>
+          <ChevronDown size={16} className="absolute right-0 top-2.5 text-muted pointer-events-none" />
+        </div>
+        <p className="text-xs text-muted">Changes the symbol shown everywhere — amounts themselves aren&apos;t converted.</p>
       </div>
 
       <div className="bg-surface border hairline p-4 space-y-3">

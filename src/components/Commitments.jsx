@@ -4,7 +4,7 @@ import { getCommitments, formatMoney } from '../lib/finance'
 const CATEGORY_LABELS = { needs: 'Needs', wants: 'Wants', savings: 'Savings' }
 const CATEGORY_ICONS = { needs: House, wants: ShoppingBag, savings: Landmark }
 
-export default function Commitments({ entries }) {
+export default function Commitments({ currency, entries }) {
   const { entries: recurring, total } = getCommitments(entries)
 
   return (
@@ -14,7 +14,7 @@ export default function Commitments({ entries }) {
           <Repeat size={13} />
           Monthly recurring total
         </div>
-        <div className="num text-2xl">{formatMoney(total)}</div>
+        <div className="num text-2xl">{formatMoney(total, currency)}</div>
         <p className="text-xs text-muted mt-1">Derived automatically from expenses flagged recurring.</p>
       </div>
 
@@ -36,7 +36,7 @@ export default function Commitments({ entries }) {
                   <div className="text-xs text-muted">{CATEGORY_LABELS[entry.category]}</div>
                 </div>
               </div>
-              <span className="num text-sm">{formatMoney(entry.amount)}</span>
+              <span className="num text-sm">{formatMoney(entry.amount, currency)}</span>
             </div>
           )
         })}

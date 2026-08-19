@@ -29,6 +29,10 @@ export default function App() {
     setState((s) => ({ ...s, name }))
   }
 
+  function handleCurrencyChange(currency) {
+    setState((s) => ({ ...s, currency }))
+  }
+
   function handleAddEntry(entry) {
     setState((s) => ({ ...s, entries: [...s.entries, entry] }))
   }
@@ -84,20 +88,30 @@ export default function App() {
         {tab === 'dashboard' && (
           <Dashboard
             name={state.name}
+            currency={state.currency}
             entries={state.entries}
             goals={state.goals}
             onGoToTransactions={() => setTab('transactions')}
           />
         )}
-        {tab === 'transactions' && <Transactions entries={state.entries} onAdd={handleAddEntry} onRemove={handleRemoveEntry} />}
-        {tab === 'commitments' && <Commitments entries={state.entries} />}
+        {tab === 'transactions' && (
+          <Transactions currency={state.currency} entries={state.entries} onAdd={handleAddEntry} onRemove={handleRemoveEntry} />
+        )}
+        {tab === 'commitments' && <Commitments currency={state.currency} entries={state.entries} />}
         {tab === 'savings' && (
-          <SavingsGoals goals={state.goals} onAdd={handleAddGoal} onRemove={handleRemoveGoal} onUpdateSaved={handleUpdateSaved} />
+          <SavingsGoals
+            currency={state.currency}
+            goals={state.goals}
+            onAdd={handleAddGoal}
+            onRemove={handleRemoveGoal}
+            onUpdateSaved={handleUpdateSaved}
+          />
         )}
         {tab === 'settings' && (
           <Settings
             state={state}
             onNameChange={handleNameChange}
+            onCurrencyChange={handleCurrencyChange}
             onExport={() => exportState(state)}
             onImport={handleImportFile}
             importError={importError}
