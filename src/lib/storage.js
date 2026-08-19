@@ -2,24 +2,47 @@ const STORAGE_KEY = 'wealth-ledger:v1'
 
 const DEFAULT_STATE = {
   name: 'Haziq',
-  income: 0,
   entries: [],
   goals: []
+}
+
+function normalizeEntries(rawEntries, legacyIncome) {
+  const entries = (Array.isArray(rawEntries) ? rawEntries : []).map((e) => ({
+    id: e.id,
+    name: e.name,
+    amount: e.amount,
+    type: e.type === 'income' ? 'income' : 'expense',
+    category: e.type === 'income' ? null : e.category ?? 'needs',
+    recurring: !!e.recurring
+  }))
+
+  const hasIncomeEntry = entries.some((e) => e.type === 'income')
+  if (!hasIncomeEntry && typeof legacyIncome === 'number' && legacyIncome > 0) {
+    entries.unshift({
+      id: makeId(),
+      name: 'Income (migrated)',
+      amount: legacyIncome,
+      type: 'income',
+      category: null,
+      recurring: true
+    })
+  }
+
+  return entries
 }
 
 export function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { ...DEFAULT_STATE }
+    if (!raw) return { ...DEFAULT_STATE, entries: [] }
     const parsed = JSON.parse(raw)
     return {
       name: typeof parsed.name === 'string' ? parsed.name : DEFAULT_STATE.name,
-      income: typeof parsed.income === 'number' ? parsed.income : 0,
-      entries: Array.isArray(parsed.entries) ? parsed.entries : [],
+      entries: normalizeEntries(parsed.entries, parsed.income),
       goals: Array.isArray(parsed.goals) ? parsed.goals : []
     }
   } catch {
-    return { ...DEFAULT_STATE }
+    return { ...DEFAULT_STATE, entries: [] }
   }
 }
 
@@ -31,7 +54,7 @@ export function exportState(state) {
   const payload = {
     ...state,
     exportedAt: new Date().toISOString(),
-    schema: 1
+    schema: 2
   }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -51,14 +74,13 @@ export function importState(file) {
     reader.onload = () => {
       try {
         const parsed = JSON.parse(reader.result)
-        if (typeof parsed.income !== 'number' || !Array.isArray(parsed.entries) || !Array.isArray(parsed.goals)) {
+        if (!Array.isArray(parsed.entries) || !Array.isArray(parsed.goals)) {
           reject(new Error('This file does not look like a valid Ledger backup.'))
           return
         }
         resolve({
           name: typeof parsed.name === 'string' ? parsed.name : DEFAULT_STATE.name,
-          income: parsed.income,
-          entries: parsed.entries,
+          entries: normalizeEntries(parsed.entries, parsed.income),
           goals: parsed.goals
         })
       } catch {

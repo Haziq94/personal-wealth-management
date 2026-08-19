@@ -1,4 +1,4 @@
-import { getAllocation, getInvestmentGuidance, getGreeting, totalSpent, formatMoney } from '../lib/finance'
+import { getAllocation, getInvestmentGuidance, getGreeting, totalIncome, totalSpent, formatMoney } from '../lib/finance'
 import AllocationBar from './AllocationBar'
 
 const TONE_STYLES = {
@@ -7,7 +7,8 @@ const TONE_STYLES = {
   good: 'border-emerald bg-emerald/5 text-emerald'
 }
 
-export default function Dashboard({ name, income, entries, goals, onIncomeChange }) {
+export default function Dashboard({ name, entries, goals, onGoToTransactions }) {
+  const income = totalIncome(entries)
   const spent = totalSpent(entries)
   const remaining = income - spent
   const allocation = getAllocation(entries, income)
@@ -21,21 +22,6 @@ export default function Dashboard({ name, income, entries, goals, onIncomeChange
           {getGreeting()} {name || 'there'}
         </h2>
         <p className="text-xs text-muted num">{today}</p>
-      </div>
-
-      <div className="bg-surface border hairline p-4">
-        <label className="block text-xs text-muted mb-1">Monthly income</label>
-        <div className="flex items-center gap-2">
-          <span className="num text-lg text-muted">$</span>
-          <input
-            type="number"
-            inputMode="decimal"
-            className="num text-lg bg-transparent border-b hairline focus:outline-none focus:border-emerald flex-1 py-1"
-            value={income || ''}
-            placeholder="0.00"
-            onChange={(e) => onIncomeChange(parseFloat(e.target.value) || 0)}
-          />
-        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-px bg-ink/10 border hairline">
@@ -52,6 +38,15 @@ export default function Dashboard({ name, income, entries, goals, onIncomeChange
           <div className={`num text-sm ${remaining < 0 ? 'text-rust' : 'text-emerald'}`}>{formatMoney(remaining)}</div>
         </div>
       </div>
+
+      {income === 0 && (
+        <button
+          onClick={onGoToTransactions}
+          className="w-full text-left bg-emerald/5 border border-emerald text-emerald p-3 text-sm"
+        >
+          No income logged yet — tap to add your first income transaction →
+        </button>
+      )}
 
       <AllocationBar allocation={allocation} />
 

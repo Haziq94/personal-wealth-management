@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { loadState, saveState, exportState, importState } from './lib/storage'
 import NavBar from './components/NavBar'
 import Dashboard from './components/Dashboard'
-import Spending from './components/Spending'
+import Transactions from './components/Transactions'
 import Commitments from './components/Commitments'
 import SavingsGoals from './components/SavingsGoals'
 
 const TITLES = {
   dashboard: 'Dashboard',
-  spending: 'Spending',
+  transactions: 'Transactions',
   commitments: 'Commitments',
   savings: 'Savings & Investing'
 }
@@ -23,10 +23,6 @@ export default function App() {
   useEffect(() => {
     saveState(state)
   }, [state])
-
-  function handleIncomeChange(income) {
-    setState((s) => ({ ...s, income }))
-  }
 
   function handleNameChange(name) {
     setState((s) => ({ ...s, name }))
@@ -111,13 +107,12 @@ export default function App() {
         {tab === 'dashboard' && (
           <Dashboard
             name={state.name}
-            income={state.income}
             entries={state.entries}
             goals={state.goals}
-            onIncomeChange={handleIncomeChange}
+            onGoToTransactions={() => setTab('transactions')}
           />
         )}
-        {tab === 'spending' && <Spending entries={state.entries} onAdd={handleAddEntry} onRemove={handleRemoveEntry} />}
+        {tab === 'transactions' && <Transactions entries={state.entries} onAdd={handleAddEntry} onRemove={handleRemoveEntry} />}
         {tab === 'commitments' && <Commitments entries={state.entries} />}
         {tab === 'savings' && (
           <SavingsGoals goals={state.goals} onAdd={handleAddGoal} onRemove={handleRemoveGoal} onUpdateSaved={handleUpdateSaved} />

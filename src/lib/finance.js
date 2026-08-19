@@ -2,14 +2,26 @@ export const CATEGORIES = ['needs', 'wants', 'savings']
 
 export const TARGETS = { needs: 0.5, wants: 0.3, savings: 0.2 }
 
+export function expensesOf(entries) {
+  return entries.filter((e) => e.type !== 'income')
+}
+
+export function incomeOf(entries) {
+  return entries.filter((e) => e.type === 'income')
+}
+
 export function sumByCategory(entries, category) {
-  return entries
+  return expensesOf(entries)
     .filter((e) => e.category === category)
     .reduce((total, e) => total + e.amount, 0)
 }
 
+export function totalIncome(entries) {
+  return incomeOf(entries).reduce((total, e) => total + e.amount, 0)
+}
+
 export function totalSpent(entries) {
-  return entries.reduce((total, e) => total + e.amount, 0)
+  return expensesOf(entries).reduce((total, e) => total + e.amount, 0)
 }
 
 export function getAllocation(entries, income) {
@@ -25,10 +37,10 @@ export function getAllocation(entries, income) {
 }
 
 export function getCommitments(entries) {
-  const recurring = entries.filter((e) => e.recurring)
+  const recurring = expensesOf(entries).filter((e) => e.recurring)
   return {
     entries: recurring,
-    total: totalSpent(recurring)
+    total: recurring.reduce((total, e) => total + e.amount, 0)
   }
 }
 
@@ -40,6 +52,12 @@ export function getInvestmentGuidance(entries, goals, income, name = '') {
   const you = name ? `${name}, ` : ''
   const cap = (s) => (you ? s : s.charAt(0).toUpperCase() + s.slice(1))
 
+  if (income <= 0) {
+    return {
+      tone: 'caution',
+      message: `${you}${cap('log your income as a transaction to see personalized guidance here.')}`
+    }
+  }
   if (remaining < 0) {
     return {
       tone: 'warning',
