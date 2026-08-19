@@ -11,6 +11,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false,
       includeAssets: ['favicon.svg', 'favicon-dark.svg', 'icon-192.png', 'icon-512.png', 'icon-monochrome-192.png', 'icon-monochrome-512.png'],
       manifest: {
         name: "Haziq's Wealth",
