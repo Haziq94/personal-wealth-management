@@ -7,9 +7,14 @@
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: contain;
   }
   body {
     @apply bg-paper text-ink font-body antialiased;
+    touch-action: manipulation;
+  }
+  button {
+    -webkit-tap-highlight-color: transparent;
   }
 }
 

@@ -1,8 +1,22 @@
 import { useState } from 'react'
+import {
+  ArrowUpCircle,
+  ArrowDownCircle,
+  Tag,
+  House,
+  ShoppingBag,
+  PiggyBank,
+  Repeat,
+  ListPlus,
+  Receipt,
+  Trash2,
+  Wallet
+} from 'lucide-react'
 import { formatMoney } from '../lib/finance'
 import { makeId } from '../lib/storage'
 
 const CATEGORY_LABELS = { needs: 'Needs', wants: 'Wants', savings: 'Savings' }
+const CATEGORY_ICONS = { needs: House, wants: ShoppingBag, savings: PiggyBank }
 
 export default function Transactions({ entries, onAdd, onRemove }) {
   const [type, setType] = useState('expense')
@@ -33,46 +47,57 @@ export default function Transactions({ entries, onAdd, onRemove }) {
   return (
     <div className="space-y-4">
       <form onSubmit={handleSubmit} className="bg-surface border hairline p-4 space-y-3">
-        <h3 className="font-display text-base">Log a transaction</h3>
+        <h3 className="font-display text-base flex items-center gap-1.5">
+          <ListPlus size={18} className="text-emerald" strokeWidth={1.75} />
+          Log a transaction
+        </h3>
 
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => setType('income')}
-            className={`flex-1 py-1.5 text-xs border ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 min-h-[44px] text-sm border ${
               type === 'income' ? 'border-emerald text-emerald bg-emerald/5' : 'hairline text-muted'
             }`}
           >
+            <ArrowUpCircle size={16} />
             Income
           </button>
           <button
             type="button"
             onClick={() => setType('expense')}
-            className={`flex-1 py-1.5 text-xs border ${
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 min-h-[44px] text-sm border ${
               type === 'expense' ? 'border-rust text-rust bg-rust/5' : 'hairline text-muted'
             }`}
           >
+            <ArrowDownCircle size={16} />
             Expense
           </button>
         </div>
 
         <div>
-          <label className="block text-xs text-muted mb-1">Name</label>
+          <label className="flex items-center gap-1 text-xs text-muted mb-1">
+            <Tag size={12} />
+            Name
+          </label>
           <input
-            className="w-full border-b hairline bg-transparent py-1.5 text-sm focus:outline-none focus:border-emerald"
+            className="w-full border-b hairline bg-transparent py-2 text-base focus:outline-none focus:border-emerald"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={type === 'income' ? 'e.g. Salary' : 'e.g. Groceries'}
           />
         </div>
         <div>
-          <label className="block text-xs text-muted mb-1">Amount</label>
+          <label className="flex items-center gap-1 text-xs text-muted mb-1">
+            <Wallet size={12} />
+            Amount
+          </label>
           <div className="flex items-center gap-2">
-            <span className="num text-sm text-muted">$</span>
+            <span className="num text-base text-muted">$</span>
             <input
               type="number"
               inputMode="decimal"
-              className="num flex-1 border-b hairline bg-transparent py-1.5 text-sm focus:outline-none focus:border-emerald"
+              className="num flex-1 border-b hairline bg-transparent py-2 text-base focus:outline-none focus:border-emerald"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
@@ -84,53 +109,81 @@ export default function Transactions({ entries, onAdd, onRemove }) {
           <div>
             <label className="block text-xs text-muted mb-1">Category</label>
             <div className="flex gap-2">
-              {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                <button
-                  type="button"
-                  key={key}
-                  onClick={() => setCategory(key)}
-                  className={`flex-1 py-1.5 text-xs border ${
-                    category === key ? 'border-emerald text-emerald bg-emerald/5' : 'hairline text-muted'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+              {Object.entries(CATEGORY_LABELS).map(([key, label]) => {
+                const Icon = CATEGORY_ICONS[key]
+                return (
+                  <button
+                    type="button"
+                    key={key}
+                    onClick={() => setCategory(key)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 min-h-[44px] text-sm border ${
+                      category === key ? 'border-emerald text-emerald bg-emerald/5' : 'hairline text-muted'
+                    }`}
+                  >
+                    <Icon size={15} />
+                    {label}
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
 
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} />
+        <label className="flex items-center gap-2 text-sm py-1 min-h-[32px]">
+          <input type="checkbox" className="w-4 h-4" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} />
+          <Repeat size={14} className="text-muted" />
           Recurring {type === 'income' ? 'income' : 'commitment'}
         </label>
-        <button type="submit" className="w-full bg-ink text-paper py-2 text-sm font-body">
+        <button
+          type="submit"
+          className="w-full flex items-center justify-center gap-1.5 bg-ink text-paper py-3 min-h-[48px] text-sm font-body"
+        >
+          {type === 'income' ? <ArrowUpCircle size={16} /> : <ArrowDownCircle size={16} />}
           Add {type === 'income' ? 'income' : 'expense'}
         </button>
       </form>
 
       <div className="bg-surface border hairline">
-        {sorted.length === 0 && <div className="p-4 text-sm text-muted">No transactions logged yet.</div>}
-        {sorted.map((entry) => (
-          <div key={entry.id} className="flex items-center justify-between px-4 py-3 border-b hairline last:border-b-0">
-            <div>
-              <div className="text-sm">{entry.name}</div>
-              <div className="text-xs text-muted">
-                {entry.type === 'income' ? 'Income' : CATEGORY_LABELS[entry.category]}
-                {entry.recurring ? ' · recurring' : ''}
+        {sorted.length === 0 && (
+          <div className="p-6 text-sm text-muted flex flex-col items-center gap-2 text-center">
+            <Receipt size={28} strokeWidth={1.5} />
+            No transactions logged yet.
+          </div>
+        )}
+        {sorted.map((entry) => {
+          const CatIcon = entry.type === 'income' ? ArrowUpCircle : CATEGORY_ICONS[entry.category]
+          return (
+            <div key={entry.id} className="flex items-center justify-between gap-2 px-4 py-3 border-b hairline last:border-b-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <CatIcon size={18} className={entry.type === 'income' ? 'text-emerald shrink-0' : 'text-muted shrink-0'} strokeWidth={1.75} />
+                <div className="min-w-0">
+                  <div className="text-sm truncate">{entry.name}</div>
+                  <div className="text-xs text-muted flex items-center gap-1">
+                    {entry.type === 'income' ? 'Income' : CATEGORY_LABELS[entry.category]}
+                    {entry.recurring && (
+                      <span className="flex items-center gap-0.5">
+                        <Repeat size={10} /> recurring
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className={`num text-sm ${entry.type === 'income' ? 'text-emerald' : 'text-ink'}`}>
+                  {entry.type === 'income' ? '+' : '-'}
+                  {formatMoney(entry.amount)}
+                </span>
+                <button
+                  onClick={() => onRemove(entry.id)}
+                  className="text-muted p-2 -m-2 hover:text-rust"
+                  aria-label={`Remove ${entry.name}`}
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <span className={`num text-sm ${entry.type === 'income' ? 'text-emerald' : 'text-ink'}`}>
-                {entry.type === 'income' ? '+' : '-'}
-                {formatMoney(entry.amount)}
-              </span>
-              <button onClick={() => onRemove(entry.id)} className="text-muted text-xs hover:text-rust">
-                remove
-              </button>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

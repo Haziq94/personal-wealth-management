@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { LayoutDashboard, ArrowLeftRight, Repeat, PiggyBank, Download, Upload, UserRound, Check } from 'lucide-react'
 import { loadState, saveState, exportState, importState } from './lib/storage'
 import NavBar from './components/NavBar'
 import Dashboard from './components/Dashboard'
@@ -7,10 +8,10 @@ import Commitments from './components/Commitments'
 import SavingsGoals from './components/SavingsGoals'
 
 const TITLES = {
-  dashboard: 'Dashboard',
-  transactions: 'Transactions',
-  commitments: 'Commitments',
-  savings: 'Savings & Investing'
+  dashboard: { label: 'Dashboard', icon: LayoutDashboard },
+  transactions: { label: 'Transactions', icon: ArrowLeftRight },
+  commitments: { label: 'Commitments', icon: Repeat },
+  savings: { label: 'Savings & Investing', icon: PiggyBank }
 }
 
 export default function App() {
@@ -62,24 +63,43 @@ export default function App() {
     }
   }
 
+  const TabIcon = TITLES[tab].icon
+
   return (
-    <div className="min-h-screen pb-20">
-      <header className="bg-surface border-b hairline sticky top-0 z-10">
-        <div className="px-4 pt-4 pb-3 flex items-center justify-between">
-          <div>
+    <div className="min-h-screen pb-24">
+      <header
+        className="bg-surface border-b hairline sticky top-0 z-10"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
+        <div className="px-4 pt-4 pb-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
             <button
               onClick={() => setEditingName(true)}
-              className="text-xs text-muted tracking-wide uppercase hover:text-ink"
+              className="flex items-center gap-1 text-xs text-muted tracking-wide uppercase hover:text-ink -ml-0.5"
             >
-              Ledger · {state.name || 'set your name'}
+              <UserRound size={13} />
+              {state.name || 'set your name'}
             </button>
-            <h1 className="font-display text-xl">{TITLES[tab]}</h1>
+            <h1 className="font-display text-xl flex items-center gap-2 mt-0.5">
+              <TabIcon size={20} className="text-emerald shrink-0" strokeWidth={1.75} />
+              {TITLES[tab].label}
+            </h1>
           </div>
-          <div className="flex gap-3 text-xs text-muted">
-            <button onClick={() => exportState(state)} className="hover:text-ink">
+          <div className="flex gap-1 shrink-0">
+            <button
+              onClick={() => exportState(state)}
+              className="flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] text-muted hover:text-ink"
+              aria-label="Export backup"
+            >
+              <Download size={18} strokeWidth={1.75} />
               Export
             </button>
-            <button onClick={() => fileInputRef.current?.click()} className="hover:text-ink">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] text-muted hover:text-ink"
+              aria-label="Import backup"
+            >
+              <Upload size={18} strokeWidth={1.75} />
               Import
             </button>
             <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={handleImportFile} />
@@ -87,6 +107,7 @@ export default function App() {
         </div>
         {editingName && (
           <div className="px-4 pb-3 flex items-center gap-2">
+            <UserRound size={16} className="text-muted shrink-0" />
             <input
               autoFocus
               className="flex-1 border-b hairline bg-transparent py-1 text-sm focus:outline-none focus:border-emerald"
@@ -95,7 +116,8 @@ export default function App() {
               onChange={(e) => handleNameChange(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && setEditingName(false)}
             />
-            <button onClick={() => setEditingName(false)} className="text-xs text-emerald">
+            <button onClick={() => setEditingName(false)} className="flex items-center gap-1 text-xs text-emerald p-1">
+              <Check size={16} />
               Done
             </button>
           </div>
