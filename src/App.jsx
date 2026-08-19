@@ -21,9 +21,15 @@ export default function App() {
   const [tab, setTab] = useState('dashboard')
   const [importError, setImportError] = useState('')
 
+  const appTitle = state.name ? `${state.name}'s Wealth` : 'My Wealth'
+
   useEffect(() => {
     saveState(state)
   }, [state])
+
+  useEffect(() => {
+    document.title = appTitle
+  }, [appTitle])
 
   function handleNameChange(name) {
     setState((s) => ({ ...s, name }))
@@ -76,7 +82,7 @@ export default function App() {
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="px-4 pt-4 pb-3">
-          <div className="text-xs text-muted tracking-wide uppercase">Ledger · {state.name || 'set your name'}</div>
+          <div className="text-xs text-muted tracking-wide uppercase">{appTitle}</div>
           <h1 className="font-display text-xl flex items-center gap-2 mt-0.5">
             <TabIcon size={20} className="text-emerald shrink-0" strokeWidth={1.75} />
             {TITLES[tab].label}

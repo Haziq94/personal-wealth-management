@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Ledger — Personal Wealth',
-        short_name: 'Ledger',
+        name: "Haziq's Wealth",
+        short_name: 'My Wealth',
         description: 'Personal income, spending, commitments and savings tracker',
         theme_color: '#F6F5F1',
         background_color: '#F6F5F1',
