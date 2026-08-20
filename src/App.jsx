@@ -74,6 +74,22 @@ export default function App() {
     setState((s) => ({ ...s, goals: s.goals.map((g) => (g.id === id ? { ...g, saved } : g)) }))
   }
 
+  function handleAddAccount(account) {
+    setState((s) => ({ ...s, accounts: [...s.accounts, account] }))
+  }
+
+  function handleRemoveAccount(id) {
+    setState((s) => ({ ...s, accounts: s.accounts.filter((a) => a.id !== id) }))
+  }
+
+  function handleAddCategory(name) {
+    setState((s) => (s.categories.includes(name) ? s : { ...s, categories: [...s.categories, name] }))
+  }
+
+  function handleRemoveCategory(name) {
+    setState((s) => ({ ...s, categories: s.categories.filter((c) => c !== name) }))
+  }
+
   async function handleImportFile(e) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -137,7 +153,15 @@ export default function App() {
           />
         )}
         {tab === 'transactions' && (
-          <Transactions currency={state.currency} entries={state.entries} onAdd={handleAddEntry} onRemove={handleRemoveEntry} />
+          <Transactions
+            currency={state.currency}
+            entries={state.entries}
+            accounts={state.accounts}
+            categories={state.categories}
+            onAdd={handleAddEntry}
+            onRemove={handleRemoveEntry}
+            onAddCategory={handleAddCategory}
+          />
         )}
         {tab === 'commitments' && <Commitments currency={state.currency} entries={state.entries} />}
         {tab === 'savings' && (
@@ -159,6 +183,10 @@ export default function App() {
             importError={importError}
             onSecurityChange={handleSecurityChange}
             onPinReset={handleSecuritySetupComplete}
+            onAddAccount={handleAddAccount}
+            onRemoveAccount={handleRemoveAccount}
+            onAddCategory={handleAddCategory}
+            onRemoveCategory={handleRemoveCategory}
           />
         )}
       </main>

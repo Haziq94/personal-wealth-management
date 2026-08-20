@@ -1,7 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
-import { UserRound, Download, Upload, Smartphone, Check, Coins, ChevronDown, ShieldCheck, Fingerprint } from 'lucide-react'
-import { CURRENCIES } from '../lib/finance'
+import {
+  UserRound,
+  Download,
+  Upload,
+  Smartphone,
+  Check,
+  Coins,
+  ChevronDown,
+  ShieldCheck,
+  Fingerprint,
+  Wallet2,
+  Tags,
+  Plus,
+  X
+} from 'lucide-react'
+import { CURRENCIES, formatMoney, getAccountBalances } from '../lib/finance'
 import { isBiometricAvailable, registerBiometric } from '../lib/security'
+import { makeId } from '../lib/storage'
 import LockScreen from './LockScreen'
 
 export default function Settings({
@@ -12,15 +27,23 @@ export default function Settings({
   onImport,
   importError,
   onSecurityChange,
-  onPinReset
+  onPinReset,
+  onAddAccount,
+  onRemoveAccount,
+  onAddCategory,
+  onRemoveCategory
 }) {
   const [name, setName] = useState(state.name)
   const [saved, setSaved] = useState(false)
   const [biometricAvailable, setBiometricAvailable] = useState(false)
   const [changingPin, setChangingPin] = useState(false)
   const [biometricError, setBiometricError] = useState('')
+  const [newAccountName, setNewAccountName] = useState('')
+  const [newAccountBalance, setNewAccountBalance] = useState('')
+  const [newCategoryName, setNewCategoryName] = useState('')
   const fileInputRef = useRef(null)
   const security = state.security ?? {}
+  const accountBalances = getAccountBalances(state.entries, state.accounts)
 
   useEffect(() => {
     isBiometricAvailable().then(setBiometricAvailable)
@@ -35,6 +58,23 @@ export default function Settings({
   function handlePinResetComplete(patch) {
     onPinReset(patch)
     setChangingPin(false)
+  }
+
+  function handleAddAccount(e) {
+    e.preventDefault()
+    const trimmed = newAccountName.trim()
+    if (!trimmed) return
+    onAddAccount({ id: makeId(), name: trimmed, openingBalance: parseFloat(newAccountBalance) || 0 })
+    setNewAccountName('')
+    setNewAccountBalance('')
+  }
+
+  function handleAddCategoryLocal(e) {
+    e.preventDefault()
+    const trimmed = newCategoryName.trim()
+    if (!trimmed || state.categories.includes(trimmed)) return
+    onAddCategory(trimmed)
+    setNewCategoryName('')
   }
 
   async function handleBiometricToggle(enable) {
@@ -109,6 +149,87 @@ export default function Settings({
           Used for Dashboard, allocation and guidance totals. When logging a transaction in another currency, enter
           the exchange rate at the time and it's converted to this currency automatically.
         </p>
+      </div>
+
+      <div className="bg-surface border hairline p-4 space-y-3">
+        <h3 className="font-display text-base flex items-center gap-1.5">
+          <Wallet2 size={18} className="text-emerald" strokeWidth={1.75} />
+          Accounts
+        </h3>
+        <p className="text-xs text-muted">Track balances across your bank accounts, cash and e-wallets.</p>
+        {accountBalances.length > 0 && (
+          <div className="border hairline divide-y hairline">
+            {accountBalances.map((a) => (
+              <div key={a.id} className="flex items-center justify-between px-3 py-2">
+                <span className="text-sm">{a.name}</span>
+                <div className="flex items-center gap-3">
+                  <span className={`num text-sm ${a.balance < 0 ? 'text-rust' : 'text-ink'}`}>{formatMoney(a.balance, state.currency)}</span>
+                  <button onClick={() => onRemoveAccount(a.id)} className="text-muted p-1 -m-1 hover:text-rust" aria-label={`Remove ${a.name}`}>
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <form onSubmit={handleAddAccount} className="flex items-end gap-2">
+          <div className="flex-1">
+            <label className="block text-xs text-muted mb-1">Account name</label>
+            <input
+              className="w-full border-b hairline bg-transparent py-2 text-sm focus:outline-none focus:border-emerald"
+              value={newAccountName}
+              onChange={(e) => setNewAccountName(e.target.value)}
+              placeholder="e.g. Maybank"
+            />
+          </div>
+          <div className="w-24">
+            <label className="block text-xs text-muted mb-1">Balance</label>
+            <input
+              type="number"
+              inputMode="decimal"
+              className="num w-full border-b hairline bg-transparent py-2 text-sm focus:outline-none focus:border-emerald"
+              value={newAccountBalance}
+              onChange={(e) => setNewAccountBalance(e.target.value)}
+              placeholder="0.00"
+            />
+          </div>
+          <button type="submit" className="p-2.5 border hairline text-emerald" aria-label="Add account">
+            <Plus size={16} />
+          </button>
+        </form>
+      </div>
+
+      <div className="bg-surface border hairline p-4 space-y-3">
+        <h3 className="font-display text-base flex items-center gap-1.5">
+          <Tags size={18} className="text-emerald" strokeWidth={1.75} />
+          Transaction categories
+        </h3>
+        <p className="text-xs text-muted">
+          Tag transactions with these — separate from the Dashboard's Needs/Wants/Savings budget groups.
+        </p>
+        {state.categories.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {state.categories.map((c) => (
+              <span key={c} className="flex items-center gap-1.5 border hairline pl-2.5 pr-1.5 py-1 text-sm">
+                {c}
+                <button onClick={() => onRemoveCategory(c)} className="text-muted p-0.5 hover:text-rust" aria-label={`Remove ${c}`}>
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <form onSubmit={handleAddCategoryLocal} className="flex items-end gap-2">
+          <input
+            className="flex-1 border-b hairline bg-transparent py-2 text-sm focus:outline-none focus:border-emerald"
+            value={newCategoryName}
+            onChange={(e) => setNewCategoryName(e.target.value)}
+            placeholder="e.g. Subscriptions"
+          />
+          <button type="submit" className="p-2.5 border hairline text-emerald" aria-label="Add category">
+            <Plus size={16} />
+          </button>
+        </form>
       </div>
 
       <div className="bg-surface border hairline p-4 space-y-3">

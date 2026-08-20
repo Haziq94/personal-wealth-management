@@ -26,14 +26,17 @@ export default function Commitments({ currency, entries }) {
           </div>
         )}
         {recurring.map((entry) => {
-          const Icon = CATEGORY_ICONS[entry.category]
+          const Icon = CATEGORY_ICONS[entry.budgetGroup]
           return (
             <div key={entry.id} className="flex items-center justify-between px-4 py-3 border-b hairline last:border-b-0">
               <div className="flex items-center gap-3">
                 <Icon size={18} className="text-muted shrink-0" strokeWidth={1.75} />
                 <div>
                   <div className="text-sm">{entry.name}</div>
-                  <div className="text-xs text-muted">{CATEGORY_LABELS[entry.category]}</div>
+                  <div className="text-xs text-muted">
+                    {CATEGORY_LABELS[entry.budgetGroup]}
+                    {entry.category && ` · ${entry.category}`}
+                  </div>
                 </div>
               </div>
               <span className="num text-sm">{formatMoney(entry.amount, currency)}</span>

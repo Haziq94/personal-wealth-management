@@ -7,7 +7,8 @@ import {
   getCurrentPeriodEntries,
   totalIncome,
   totalSpent,
-  formatMoney
+  formatMoney,
+  formatDateTime
 } from '../lib/finance'
 import AllocationBar from './AllocationBar'
 
@@ -15,10 +16,6 @@ const TONE_STYLES = {
   warning: { box: 'border-rust bg-rust/5 text-rust', icon: TriangleAlert },
   caution: { box: 'border-ink/20 bg-ink/5 text-ink', icon: CircleAlert },
   good: { box: 'border-emerald bg-emerald/5 text-emerald', icon: Sparkles }
-}
-
-function formatDate(iso) {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 export default function Dashboard({ name, currency, entries, goals, onGoToTransactions }) {
@@ -44,7 +41,7 @@ export default function Dashboard({ name, currency, entries, goals, onGoToTransa
       {periodStart && (
         <div className="flex items-center gap-1.5 text-xs text-muted">
           <CalendarRange size={13} />
-          Current pay period: <span className="num text-ink">{formatDate(periodStart)} – today</span>
+          Current pay period: <span className="num text-ink">{formatDateTime(periodStart)} – today</span>
         </div>
       )}
 

@@ -1,4 +1,4 @@
-import { CURRENCIES, DEFAULT_CURRENCY, todayISO } from './finance'
+import { CURRENCIES, DEFAULT_CURRENCY, DEFAULT_CATEGORIES, BUDGET_GROUPS, nowLocalISO } from './finance'
 
 const STORAGE_KEY = 'wealth-ledger:v1'
 
@@ -15,6 +15,8 @@ const DEFAULT_STATE = {
   currency: DEFAULT_CURRENCY,
   entries: [],
   goals: [],
+  accounts: [],
+  categories: [...DEFAULT_CATEGORIES],
   security: DEFAULT_SECURITY
 }
 
@@ -33,19 +35,54 @@ function normalizeCurrency(currency) {
   return typeof currency === 'string' && CURRENCIES[currency] ? currency : DEFAULT_CURRENCY
 }
 
+function normalizeCategories(categories) {
+  if (!Array.isArray(categories)) return [...DEFAULT_CATEGORIES]
+  const cleaned = categories.filter((c) => typeof c === 'string' && c.trim())
+  return cleaned.length > 0 ? [...new Set(cleaned)] : [...DEFAULT_CATEGORIES]
+}
+
+function normalizeAccounts(accounts) {
+  if (!Array.isArray(accounts)) return []
+  return accounts
+    .filter((a) => a && typeof a.name === 'string')
+    .map((a) => ({
+      id: typeof a.id === 'string' ? a.id : makeId(),
+      name: a.name,
+      openingBalance: typeof a.openingBalance === 'number' ? a.openingBalance : 0
+    }))
+}
+
+// Datetime-local format ("YYYY-MM-DDTHH:mm"); older backups only stored a bare
+// date ("YYYY-MM-DD"), so those get a default time appended.
+function normalizeDateTime(raw) {
+  if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(raw)) return raw.slice(0, 16)
+  if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw)) return `${raw}T12:00`
+  return nowLocalISO()
+}
+
 function normalizeEntries(rawEntries, legacyIncome) {
-  const entries = (Array.isArray(rawEntries) ? rawEntries : []).map((e) => ({
-    id: e.id,
-    name: e.name,
-    amount: e.amount,
-    type: e.type === 'income' ? 'income' : 'expense',
-    category: e.type === 'income' ? null : e.category ?? 'needs',
-    recurring: !!e.recurring,
-    date: typeof e.date === 'string' ? e.date : todayISO(),
-    ...(e.foreignCurrency && typeof e.foreignAmount === 'number' && typeof e.exchangeRate === 'number'
-      ? { foreignCurrency: e.foreignCurrency, foreignAmount: e.foreignAmount, exchangeRate: e.exchangeRate }
-      : {})
-  }))
+  const entries = (Array.isArray(rawEntries) ? rawEntries : []).map((e) => {
+    const type = e.type === 'income' ? 'income' : e.type === 'transfer' ? 'transfer' : 'expense'
+    // Before budget groups (needs/wants/savings) and specific categories (Food & Drink, etc.)
+    // were split apart, `category` held the budget group directly.
+    const legacyBudgetGroup = typeof e.budgetGroup !== 'string' && BUDGET_GROUPS.includes(e.category)
+    return {
+      id: e.id,
+      name: e.name,
+      amount: e.amount,
+      type,
+      budgetGroup: type === 'expense' ? (typeof e.budgetGroup === 'string' ? e.budgetGroup : legacyBudgetGroup ? e.category : 'needs') : null,
+      category: legacyBudgetGroup ? null : typeof e.category === 'string' ? e.category : null,
+      recurring: !!e.recurring,
+      date: normalizeDateTime(e.date),
+      accountId: typeof e.accountId === 'string' ? e.accountId : null,
+      fromAccountId: typeof e.fromAccountId === 'string' ? e.fromAccountId : null,
+      toAccountId: typeof e.toAccountId === 'string' ? e.toAccountId : null,
+      ...(e.foreignCurrency && typeof e.foreignAmount === 'number' && typeof e.exchangeRate === 'number'
+        ? { foreignCurrency: e.foreignCurrency, foreignAmount: e.foreignAmount, exchangeRate: e.exchangeRate }
+        : {})
+    }
+  })
 
   const hasIncomeEntry = entries.some((e) => e.type === 'income')
   if (!hasIncomeEntry && typeof legacyIncome === 'number' && legacyIncome > 0) {
@@ -54,9 +91,13 @@ function normalizeEntries(rawEntries, legacyIncome) {
       name: 'Income (migrated)',
       amount: legacyIncome,
       type: 'income',
+      budgetGroup: null,
       category: null,
       recurring: true,
-      date: todayISO()
+      date: nowLocalISO(),
+      accountId: null,
+      fromAccountId: null,
+      toAccountId: null
     })
   }
 
@@ -66,17 +107,19 @@ function normalizeEntries(rawEntries, legacyIncome) {
 export function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { ...DEFAULT_STATE, entries: [] }
+    if (!raw) return { ...DEFAULT_STATE, entries: [], accounts: [], categories: [...DEFAULT_CATEGORIES] }
     const parsed = JSON.parse(raw)
     return {
       name: typeof parsed.name === 'string' ? parsed.name : DEFAULT_STATE.name,
       currency: normalizeCurrency(parsed.currency),
       entries: normalizeEntries(parsed.entries, parsed.income),
       goals: Array.isArray(parsed.goals) ? parsed.goals : [],
+      accounts: normalizeAccounts(parsed.accounts),
+      categories: normalizeCategories(parsed.categories),
       security: normalizeSecurity(parsed.security)
     }
   } catch {
-    return { ...DEFAULT_STATE, entries: [] }
+    return { ...DEFAULT_STATE, entries: [], accounts: [], categories: [...DEFAULT_CATEGORIES] }
   }
 }
 
@@ -91,12 +134,12 @@ export function exportState(state) {
   const payload = {
     ...rest,
     exportedAt: new Date().toISOString(),
-    schema: 5
+    schema: 6
   }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  const date = todayISO()
+  const date = nowLocalISO().slice(0, 10)
   a.href = url
   a.download = `wealth-ledger-backup-${date}.json`
   document.body.appendChild(a)
@@ -121,7 +164,9 @@ export function importState(file) {
           name: typeof parsed.name === 'string' ? parsed.name : DEFAULT_STATE.name,
           currency: normalizeCurrency(parsed.currency),
           entries: normalizeEntries(parsed.entries, parsed.income),
-          goals: parsed.goals
+          goals: parsed.goals,
+          accounts: normalizeAccounts(parsed.accounts),
+          categories: normalizeCategories(parsed.categories)
         })
       } catch {
         reject(new Error('Could not parse this file as JSON.'))

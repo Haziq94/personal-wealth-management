@@ -21,19 +21,40 @@ export function todayISO(date = new Date()) {
   return `${year}-${month}-${day}`
 }
 
-export const CATEGORIES = ['needs', 'wants', 'savings']
+// "YYYY-MM-DDTHH:mm", the same shape a <input type="datetime-local"> reads/writes.
+// Entries store this as their `date` field — it still sorts and compares correctly
+// as a plain string, so period-boundary logic below needed no changes.
+export function nowLocalISO(date = new Date()) {
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${todayISO(date)}T${hours}:${minutes}`
+}
+
+export function formatDateTime(iso) {
+  if (!iso) return ''
+  const d = new Date(iso.length > 10 ? iso : `${iso}T00:00`)
+  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
+export const BUDGET_GROUPS = ['needs', 'wants', 'savings']
+
+export const DEFAULT_CATEGORIES = ['Food & Drink', 'Transport', 'Bills & Utility', 'Entertainment']
 
 export function expensesOf(entries) {
-  return entries.filter((e) => e.type !== 'income')
+  return entries.filter((e) => e.type === 'expense')
 }
 
 export function incomeOf(entries) {
   return entries.filter((e) => e.type === 'income')
 }
 
-export function sumByCategory(entries, category) {
+export function transfersOf(entries) {
+  return entries.filter((e) => e.type === 'transfer')
+}
+
+export function sumByBudgetGroup(entries, group) {
   return expensesOf(entries)
-    .filter((e) => e.category === category)
+    .filter((e) => e.budgetGroup === group)
     .reduce((total, e) => total + e.amount, 0)
 }
 
@@ -62,8 +83,8 @@ export function getAllocationTargets(entries, income) {
 
 export function getAllocation(entries, income) {
   const targets = getAllocationTargets(entries, income)
-  return CATEGORIES.reduce((acc, cat) => {
-    const spent = sumByCategory(entries, cat)
+  return BUDGET_GROUPS.reduce((acc, cat) => {
+    const spent = sumByBudgetGroup(entries, cat)
     acc[cat] = {
       spent,
       pct: income > 0 ? spent / income : 0,
@@ -100,7 +121,7 @@ export function getInvestmentGuidance(entries, goals, income, name = '') {
   const spent = totalSpent(entries)
   const remaining = income - spent
   const targets = getAllocationTargets(entries, income)
-  const savingsRate = income > 0 ? sumByCategory(entries, 'savings') / income : 0
+  const savingsRate = income > 0 ? sumByBudgetGroup(entries, 'savings') / income : 0
   const emergencyGoal = goals.find((g) => g.name.toLowerCase().includes('emergency'))
   const you = name ? `${name}, ` : ''
   const cap = (s) => (you ? s : s.charAt(0).toUpperCase() + s.slice(1))
@@ -139,6 +160,21 @@ export function getInvestmentGuidance(entries, goals, income, name = '') {
     tone: 'good',
     message: `${you}${cap('savings are healthy and your emergency fund is covered. Consider directing monthly surplus into diversified, low-cost investments.')}`
   }
+}
+
+export function getAccountBalances(entries, accounts) {
+  return accounts.map((account) => {
+    let balance = account.openingBalance || 0
+    for (const e of entries) {
+      if (e.type === 'income' && e.accountId === account.id) balance += e.amount
+      else if (e.type === 'expense' && e.accountId === account.id) balance -= e.amount
+      else if (e.type === 'transfer') {
+        if (e.fromAccountId === account.id) balance -= e.amount
+        if (e.toAccountId === account.id) balance += e.amount
+      }
+    }
+    return { ...account, balance }
+  })
 }
 
 export function getGreeting(date = new Date()) {
