@@ -300,6 +300,49 @@ export function getAccountBalances(entries, accounts) {
   })
 }
 
+// Years worth showing in the Tax page's year picker — every year with either a
+// transaction or a payslip, plus the current year so a first-time user isn't
+// staring at an empty selector.
+export function getTaxYears(entries, payslips = []) {
+  const years = new Set([String(new Date().getFullYear())])
+  for (const e of entries) if (e.date) years.add(e.date.slice(0, 4))
+  for (const p of payslips) if (p.date) years.add(p.date.slice(0, 4))
+  return [...years].sort((a, b) => b.localeCompare(a))
+}
+
+export function getTaxDeductibleExpenses(entries, year) {
+  return expensesOf(entries)
+    .filter((e) => e.taxDeductible && e.date && e.date.slice(0, 4) === year)
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+}
+
+// Payslips carry a free-form deductions breakdown (EPF, SOCSO, PCB, etc.) — this
+// aggregates that across every payslip in the given year, both as a grand total
+// and per-label, so the Tax page can show "PCB: RM 1,200" without hardcoding
+// Malaysia-specific deduction names into the data model.
+export function getPayslipSummary(payslips, year) {
+  const inYear = payslips.filter((p) => p.date && p.date.slice(0, 4) === year).sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+  const grossTotal = inYear.reduce((t, p) => t + (p.grossSalary || 0), 0)
+  const nettTotal = inYear.reduce((t, p) => t + (p.nettSalary || 0), 0)
+  const deductionTotals = {}
+  let deductionsTotal = 0
+  for (const p of inYear) {
+    for (const d of p.deductions || []) {
+      deductionTotals[d.label] = (deductionTotals[d.label] || 0) + d.amount
+      deductionsTotal += d.amount
+    }
+  }
+  return {
+    payslips: inYear,
+    grossTotal,
+    nettTotal,
+    deductionsTotal,
+    deductionBreakdown: Object.entries(deductionTotals)
+      .map(([label, amount]) => ({ label, amount }))
+      .sort((a, b) => b.amount - a.amount)
+  }
+}
+
 export function getGreeting(date = new Date()) {
   const hour = date.getHours()
   if (hour < 5) return 'Burning the midnight oil,'

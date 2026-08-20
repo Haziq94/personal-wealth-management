@@ -8,12 +8,15 @@ import {
   Trash2,
   ArrowRightLeft,
   Plus,
-  Wallet2
+  Wallet2,
+  Camera,
+  ShieldCheck
 } from 'lucide-react'
 import { formatMoney, currencySymbol, formatDateTime, getAccountBalances } from '../lib/finance'
 import { categoryIcon } from '../lib/categoryIcons'
 import { makeId } from '../lib/storage'
 import AddTransactionModal from './AddTransactionModal'
+import ReceiptViewer from './ReceiptViewer'
 
 function accountName(accounts, id) {
   return accounts.find((a) => a.id === id)?.name ?? 'account'
@@ -24,6 +27,7 @@ export default function Transactions({ currency, entries, accounts, categories, 
   const [addingAccount, setAddingAccount] = useState(false)
   const [newAccountName, setNewAccountName] = useState('')
   const [newAccountBalance, setNewAccountBalance] = useState('')
+  const [viewingReceipt, setViewingReceipt] = useState(null)
   const balances = getAccountBalances(entries, accounts)
   const sorted = [...entries].reverse().sort((a, b) => (b.date || '').localeCompare(a.date || ''))
 
@@ -125,6 +129,11 @@ export default function Transactions({ currency, entries, accounts, categories, 
                         <Repeat size={10} /> recurring
                       </span>
                     )}
+                    {entry.taxDeductible && (
+                      <span className="flex items-center gap-0.5 text-emerald">
+                        <ShieldCheck size={10} /> tax
+                      </span>
+                    )}
                     {entry.foreignCurrency && (
                       <span className="num flex items-center gap-0.5">
                         <ArrowRightLeft size={10} />
@@ -139,6 +148,15 @@ export default function Transactions({ currency, entries, accounts, categories, 
                   {sign}
                   {formatMoney(entry.amount, currency)}
                 </span>
+                {entry.receiptId && (
+                  <button
+                    onClick={() => setViewingReceipt(entry.receiptId)}
+                    className="text-muted p-2 -m-2 hover:text-emerald"
+                    aria-label={`View receipt for ${entry.name}`}
+                  >
+                    <Camera size={16} />
+                  </button>
+                )}
                 <button
                   onClick={() => onRemove(entry.id)}
                   className="text-muted p-2 -m-2 hover:text-rust"
@@ -170,6 +188,8 @@ export default function Transactions({ currency, entries, accounts, categories, 
           onClose={() => setShowAdd(false)}
         />
       )}
+
+      {viewingReceipt && <ReceiptViewer receiptId={viewingReceipt} onClose={() => setViewingReceipt(null)} />}
     </div>
   )
 }

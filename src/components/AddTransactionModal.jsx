@@ -10,10 +10,13 @@ import {
   ArrowRightLeft,
   CalendarClock,
   Plus,
-  Check
+  Check,
+  Camera,
+  ShieldCheck
 } from 'lucide-react'
 import { formatMoney, currencySymbol, CURRENCIES, nowLocalISO } from '../lib/finance'
 import { makeId } from '../lib/storage'
+import { saveReceipt } from '../lib/receiptStore'
 
 const TYPES = [
   { key: 'income', label: 'Income', icon: ArrowUpCircle, activeClass: 'border-emerald text-emerald bg-emerald/5' },
@@ -37,6 +40,10 @@ export default function AddTransactionModal({ currency, categories, accounts, on
   const [accountId, setAccountId] = useState('')
   const [fromAccountId, setFromAccountId] = useState('')
   const [toAccountId, setToAccountId] = useState('')
+  const [taxDeductible, setTaxDeductible] = useState(false)
+  const [receiptFile, setReceiptFile] = useState(null)
+  const [receiptPreview, setReceiptPreview] = useState(null)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     setTxnCurrency(currency)
@@ -46,8 +53,23 @@ export default function AddTransactionModal({ currency, categories, accounts, on
     if (type !== 'expense') {
       setCategory('')
       setAddingCategory(false)
+      setTaxDeductible(false)
     }
   }, [type])
+
+  function handleReceiptChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (receiptPreview) URL.revokeObjectURL(receiptPreview)
+    setReceiptFile(file)
+    setReceiptPreview(URL.createObjectURL(file))
+  }
+
+  function clearReceipt() {
+    if (receiptPreview) URL.revokeObjectURL(receiptPreview)
+    setReceiptFile(null)
+    setReceiptPreview(null)
+  }
 
   const isForeign = txnCurrency !== currency
   const parsedAmount = parseFloat(amount)
@@ -75,9 +97,15 @@ export default function AddTransactionModal({ currency, categories, accounts, on
     setAddingCategory(false)
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    if (!canSubmit) return
+    if (!canSubmit || saving) return
+    setSaving(true)
+    let receiptId = null
+    if (receiptFile) {
+      receiptId = makeId()
+      await saveReceipt(receiptId, receiptFile)
+    }
     const base = {
       id: makeId(),
       name: name.trim(),
@@ -89,6 +117,8 @@ export default function AddTransactionModal({ currency, categories, accounts, on
       accountId: type === 'transfer' ? null : accountId || null,
       fromAccountId: type === 'transfer' ? fromAccountId : null,
       toAccountId: type === 'transfer' ? toAccountId : null,
+      receiptId,
+      taxDeductible: type === 'expense' && taxDeductible,
       ...(isForeign ? { foreignCurrency: txnCurrency, foreignAmount: parsedAmount, exchangeRate: parsedRate } : {})
     }
     onAdd(base)
@@ -309,13 +339,51 @@ export default function AddTransactionModal({ currency, categories, accounts, on
           </label>
         )}
 
+        {type === 'expense' && (
+          <label className="flex items-center gap-2 text-sm py-1 min-h-[32px]">
+            <input
+              type="checkbox"
+              className="w-4 h-4"
+              checked={taxDeductible}
+              onChange={(e) => setTaxDeductible(e.target.checked)}
+            />
+            <ShieldCheck size={14} className="text-muted" />
+            Tax deductible / claim for exemption
+          </label>
+        )}
+
+        <div>
+          <label className="flex items-center gap-1 text-xs text-muted mb-1">
+            <Camera size={12} />
+            Receipt (optional)
+          </label>
+          {!receiptPreview ? (
+            <label className="flex items-center justify-center gap-1.5 border hairline py-2.5 text-sm text-muted cursor-pointer">
+              <Plus size={14} /> Attach photo
+              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleReceiptChange} />
+            </label>
+          ) : (
+            <div className="relative inline-block">
+              <img src={receiptPreview} alt="Receipt preview" className="h-24 border hairline object-cover" />
+              <button
+                type="button"
+                onClick={clearReceipt}
+                className="absolute -top-2 -right-2 bg-ink text-paper rounded-full p-1"
+                aria-label="Remove receipt"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
+        </div>
+
         <button
           type="submit"
-          disabled={!canSubmit}
+          disabled={!canSubmit || saving}
           className="w-full flex items-center justify-center gap-1.5 bg-ink text-paper py-3 min-h-[48px] text-sm font-body disabled:opacity-40"
         >
           <Plus size={16} />
-          Add {type}
+          {saving ? 'Saving…' : `Add ${type}`}
         </button>
       </form>
     </div>

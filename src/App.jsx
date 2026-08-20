@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react'
-import { LayoutDashboard, ArrowLeftRight, Repeat, Landmark, Settings as SettingsIcon, BarChart3 } from 'lucide-react'
+import {
+  LayoutDashboard,
+  ArrowLeftRight,
+  Repeat,
+  Landmark,
+  Settings as SettingsIcon,
+  BarChart3,
+  ShieldCheck
+} from 'lucide-react'
 import { loadState, saveState, exportState, importState } from './lib/storage'
 import NavBar from './components/NavBar'
 import Dashboard from './components/Dashboard'
@@ -7,6 +15,7 @@ import Analytics from './components/Analytics'
 import Transactions from './components/Transactions'
 import Commitments from './components/Commitments'
 import Savings from './components/Savings'
+import Tax from './components/Tax'
 import Settings from './components/Settings'
 import LockScreen from './components/LockScreen'
 
@@ -16,6 +25,7 @@ const TITLES = {
   transactions: { label: 'Transactions', icon: ArrowLeftRight },
   commitments: { label: 'Commitments', icon: Repeat },
   savings: { label: 'Savings & Investing', icon: Landmark },
+  tax: { label: 'Tax', icon: ShieldCheck },
   settings: { label: 'Settings', icon: SettingsIcon }
 }
 
@@ -82,6 +92,14 @@ export default function App() {
 
   function handleAddAccountType(type) {
     setState((s) => (s.accountTypes.includes(type) ? s : { ...s, accountTypes: [...s.accountTypes, type] }))
+  }
+
+  function handleAddPayslip(payslip) {
+    setState((s) => ({ ...s, payslips: [...s.payslips, payslip] }))
+  }
+
+  function handleRemovePayslip(id) {
+    setState((s) => ({ ...s, payslips: s.payslips.filter((p) => p.id !== id) }))
   }
 
   function handleRemoveAccountType(type) {
@@ -173,6 +191,15 @@ export default function App() {
             onAddAccount={handleAddAccount}
             onRemoveAccount={handleRemoveAccount}
             onAddAccountType={handleAddAccountType}
+          />
+        )}
+        {tab === 'tax' && (
+          <Tax
+            currency={state.currency}
+            entries={state.entries}
+            payslips={state.payslips}
+            onAddPayslip={handleAddPayslip}
+            onRemovePayslip={handleRemovePayslip}
           />
         )}
         {tab === 'settings' && (

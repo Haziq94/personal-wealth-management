@@ -21,6 +21,7 @@ const DEFAULT_STATE = {
   accounts: [],
   categories: [...DEFAULT_CATEGORIES],
   accountTypes: [],
+  payslips: [],
   security: DEFAULT_SECURITY
 }
 
@@ -67,6 +68,27 @@ function normalizeAccountTypes(accountTypes) {
   return [...new Set(accountTypes.filter((t) => typeof t === 'string' && t.trim()))]
 }
 
+// Payslip photos live in IndexedDB (see receiptStore.js) — receiptId here is just
+// a pointer, and stays a dangling id with no matching image if it's missing.
+function normalizePayslips(payslips) {
+  if (!Array.isArray(payslips)) return []
+  return payslips
+    .filter((p) => p && typeof p.id === 'string')
+    .map((p) => ({
+      id: p.id,
+      date: typeof p.date === 'string' ? p.date : '',
+      grossSalary: typeof p.grossSalary === 'number' ? p.grossSalary : 0,
+      nettSalary: typeof p.nettSalary === 'number' ? p.nettSalary : 0,
+      deductions: Array.isArray(p.deductions)
+        ? p.deductions
+            .filter((d) => d && typeof d.label === 'string' && typeof d.amount === 'number')
+            .map((d) => ({ label: d.label, amount: d.amount }))
+        : [],
+      receiptId: typeof p.receiptId === 'string' ? p.receiptId : null,
+      notes: typeof p.notes === 'string' ? p.notes : ''
+    }))
+}
+
 // Datetime-local format ("YYYY-MM-DDTHH:mm"); older backups only stored a bare
 // date ("YYYY-MM-DD"), so those get a default time appended.
 function normalizeDateTime(raw) {
@@ -93,6 +115,10 @@ function normalizeEntries(rawEntries, legacyIncome) {
       accountId: typeof e.accountId === 'string' ? e.accountId : null,
       fromAccountId: typeof e.fromAccountId === 'string' ? e.fromAccountId : null,
       toAccountId: typeof e.toAccountId === 'string' ? e.toAccountId : null,
+      receiptId: typeof e.receiptId === 'string' ? e.receiptId : null,
+      // Only meaningful on an expense — dropped if the type doesn't match so a
+      // legacy/imported record can't mark a transfer as tax-deductible.
+      taxDeductible: type === 'expense' && !!e.taxDeductible,
       ...(e.foreignCurrency && typeof e.foreignAmount === 'number' && typeof e.exchangeRate === 'number'
         ? { foreignCurrency: e.foreignCurrency, foreignAmount: e.foreignAmount, exchangeRate: e.exchangeRate }
         : {})
@@ -121,7 +147,8 @@ function normalizeEntries(rawEntries, legacyIncome) {
 export function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { ...DEFAULT_STATE, entries: [], accounts: [], categories: [...DEFAULT_CATEGORIES], accountTypes: [] }
+    if (!raw)
+      return { ...DEFAULT_STATE, entries: [], accounts: [], categories: [...DEFAULT_CATEGORIES], accountTypes: [], payslips: [] }
     const parsed = JSON.parse(raw)
     return {
       name: typeof parsed.name === 'string' ? parsed.name : DEFAULT_STATE.name,
@@ -130,10 +157,11 @@ export function loadState() {
       accounts: normalizeAccounts(parsed.accounts),
       categories: normalizeCategories(parsed.categories),
       accountTypes: normalizeAccountTypes(parsed.accountTypes),
+      payslips: normalizePayslips(parsed.payslips),
       security: normalizeSecurity(parsed.security)
     }
   } catch {
-    return { ...DEFAULT_STATE, entries: [], accounts: [], categories: [...DEFAULT_CATEGORIES], accountTypes: [] }
+    return { ...DEFAULT_STATE, entries: [], accounts: [], categories: [...DEFAULT_CATEGORIES], accountTypes: [], payslips: [] }
   }
 }
 
@@ -144,11 +172,13 @@ export function saveState(state) {
 export function exportState(state) {
   // security (PIN hash/salt/biometric credential) is device-local and deliberately
   // left out of backups — it never needs to travel and shouldn't sit in a JSON file.
+  // Receipt/payslip photos are also device-local (IndexedDB, see receiptStore.js) —
+  // the receiptId pointers travel with entries/payslips, but the image bytes don't.
   const { security, ...rest } = state
   const payload = {
     ...rest,
     exportedAt: new Date().toISOString(),
-    schema: 7
+    schema: 8
   }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -182,7 +212,8 @@ export function importState(file) {
           entries: normalizeEntries(parsed.entries, parsed.income),
           accounts: normalizeAccounts(parsed.accounts),
           categories: normalizeCategories(parsed.categories),
-          accountTypes: normalizeAccountTypes(parsed.accountTypes)
+          accountTypes: normalizeAccountTypes(parsed.accountTypes),
+          payslips: normalizePayslips(parsed.payslips)
         })
       } catch {
         reject(new Error('Could not parse this file as JSON.'))

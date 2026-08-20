@@ -1,5 +1,15 @@
 import { useState } from 'react'
-import { LayoutDashboard, ArrowLeftRight, Repeat, Landmark, Settings as SettingsIcon, Wallet2, ChevronUp, BarChart3 } from 'lucide-react'
+import {
+  LayoutDashboard,
+  ArrowLeftRight,
+  Repeat,
+  Landmark,
+  Settings as SettingsIcon,
+  Wallet2,
+  ChevronUp,
+  BarChart3,
+  ShieldCheck
+} from 'lucide-react'
 
 const SUB_TABS = [
   { id: 'transactions', label: 'Transactions', icon: ArrowLeftRight },
@@ -89,6 +99,7 @@ export default function NavBar({ active, onChange }) {
           </button>
         </div>
 
+        <PrimaryTab id="tax" label="Tax" icon={ShieldCheck} active={active} onClick={handlePrimaryTab} />
         <PrimaryTab id="settings" label="Settings" icon={SettingsIcon} active={active} onClick={handlePrimaryTab} />
       </nav>
     </>
