@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { LayoutDashboard, ArrowLeftRight, Repeat, Landmark, Settings as SettingsIcon } from 'lucide-react'
 import { loadState, saveState, exportState, importState } from './lib/storage'
 import NavBar from './components/NavBar'
@@ -8,8 +8,6 @@ import Commitments from './components/Commitments'
 import SavingsGoals from './components/SavingsGoals'
 import Settings from './components/Settings'
 import LockScreen from './components/LockScreen'
-
-const RELOCK_AFTER_HIDDEN_MS = 30 * 1000
 
 const TITLES = {
   dashboard: { label: 'Dashboard', icon: LayoutDashboard },
@@ -25,7 +23,6 @@ export default function App() {
   const [importError, setImportError] = useState('')
   // Force setup when there's no PIN yet, and lock every open when a PIN exists and is enabled.
   const [locked, setLocked] = useState(() => !state.security?.pinHash || !!state.security?.enabled)
-  const hiddenAtRef = useRef(null)
 
   const appTitle = state.name ? `${state.name}'s Wealth` : 'My Wealth'
 
@@ -39,19 +36,11 @@ export default function App() {
 
   useEffect(() => {
     function onVisibilityChange() {
-      if (document.visibilityState === 'hidden') {
-        hiddenAtRef.current = Date.now()
-        return
-      }
-      if (
-        document.visibilityState === 'visible' &&
-        state.security?.enabled &&
-        hiddenAtRef.current &&
-        Date.now() - hiddenAtRef.current > RELOCK_AFTER_HIDDEN_MS
-      ) {
+      // Re-lock the instant the app is minimized/backgrounded, not just on a
+      // fresh launch — a phone can be picked up by someone else within seconds.
+      if (document.visibilityState === 'hidden' && state.security?.enabled) {
         setLocked(true)
       }
-      hiddenAtRef.current = null
     }
     document.addEventListener('visibilitychange', onVisibilityChange)
     return () => document.removeEventListener('visibilitychange', onVisibilityChange)
