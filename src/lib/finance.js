@@ -166,6 +166,43 @@ export function getInvestmentGuidance(entries, goals, income, name = '') {
   }
 }
 
+// Calendar months, not pay periods — analytics looks at long-run trends, so it
+// intentionally ignores the salary-anchored "current period" the Dashboard uses.
+export function getMonthlyTrend(entries, months = 6) {
+  const now = new Date()
+  const buckets = []
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    buckets.push({ key, label: d.toLocaleDateString(undefined, { month: 'short' }), income: 0, spent: 0 })
+  }
+  const byKey = Object.fromEntries(buckets.map((b) => [b.key, b]))
+  for (const e of entries) {
+    const bucket = e.date && byKey[e.date.slice(0, 7)]
+    if (!bucket) continue
+    if (e.type === 'income') bucket.income += e.amount
+    else if (e.type === 'expense') bucket.spent += e.amount
+  }
+  return buckets
+}
+
+export function getCategoryBreakdown(entries, months = 6) {
+  const now = new Date()
+  const cutoff = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1)
+  const cutoffKey = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}`
+  const totals = {}
+  let total = 0
+  for (const e of expensesOf(entries)) {
+    if (!e.date || e.date.slice(0, 7) < cutoffKey) continue
+    const cat = e.category || 'Uncategorized'
+    totals[cat] = (totals[cat] || 0) + e.amount
+    total += e.amount
+  }
+  return Object.entries(totals)
+    .map(([category, amount]) => ({ category, amount, pct: total > 0 ? amount / total : 0 }))
+    .sort((a, b) => b.amount - a.amount)
+}
+
 export function getAccountBalances(entries, accounts) {
   return accounts.map((account) => {
     let balance = account.openingBalance || 0

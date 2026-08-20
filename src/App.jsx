@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { LayoutDashboard, ArrowLeftRight, Repeat, Landmark, Settings as SettingsIcon } from 'lucide-react'
+import { LayoutDashboard, ArrowLeftRight, Repeat, Landmark, Settings as SettingsIcon, BarChart3 } from 'lucide-react'
 import { loadState, saveState, exportState, importState } from './lib/storage'
 import NavBar from './components/NavBar'
 import Dashboard from './components/Dashboard'
+import Analytics from './components/Analytics'
 import Transactions from './components/Transactions'
 import Commitments from './components/Commitments'
 import SavingsGoals from './components/SavingsGoals'
@@ -11,6 +12,7 @@ import LockScreen from './components/LockScreen'
 
 const TITLES = {
   dashboard: { label: 'Dashboard', icon: LayoutDashboard },
+  analytics: { label: 'Analytics', icon: BarChart3 },
   transactions: { label: 'Transactions', icon: ArrowLeftRight },
   commitments: { label: 'Commitments', icon: Repeat },
   savings: { label: 'Savings & Investing', icon: Landmark },
@@ -152,6 +154,7 @@ export default function App() {
             onGoToTransactions={() => setTab('transactions')}
           />
         )}
+        {tab === 'analytics' && <Analytics currency={state.currency} entries={state.entries} />}
         {tab === 'transactions' && (
           <Transactions
             currency={state.currency}

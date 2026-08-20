@@ -8,27 +8,12 @@ import {
   Trash2,
   ArrowRightLeft,
   Plus,
-  Wallet2,
-  Utensils,
-  Bus,
-  Zap,
-  Clapperboard,
-  Tag
+  Wallet2
 } from 'lucide-react'
 import { formatMoney, currencySymbol, formatDateTime, getAccountBalances } from '../lib/finance'
+import { categoryIcon } from '../lib/categoryIcons'
 import { makeId } from '../lib/storage'
 import AddTransactionModal from './AddTransactionModal'
-
-const CATEGORY_ICON_MATCH = {
-  'food & drink': Utensils,
-  transport: Bus,
-  'bills & utility': Zap,
-  entertainment: Clapperboard
-}
-
-function categoryIcon(category) {
-  return CATEGORY_ICON_MATCH[category?.toLowerCase()] ?? Tag
-}
 
 function accountName(accounts, id) {
   return accounts.find((a) => a.id === id)?.name ?? 'account'
