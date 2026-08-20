@@ -156,6 +156,28 @@ export function getTopSpendingCategories(entries, limit = 3) {
     .slice(0, limit)
 }
 
+// A whole category ("Food & Drink") is too blunt a target — it can't tell a habitual
+// small purchase (the same coffee, bought most days) from a one-off or a legitimately
+// bigger month (more lunches because you were in the office more). What IS a reliable
+// signal from the data we have: the same-named item bought repeatedly. That's specific,
+// nameable, and — unlike a category total climbing for a good reason — actually optional.
+export function getSpendingHabits(entries, limit = 3, minOccurrences = 3) {
+  const groups = {}
+  for (const e of expensesOf(entries)) {
+    if (e.recurring || isEmergencyEntry(e)) continue
+    const key = (e.name || '').trim().toLowerCase()
+    if (!key) continue
+    if (!groups[key]) groups[key] = { name: e.name.trim(), count: 0, total: 0 }
+    groups[key].count += 1
+    groups[key].total += e.amount
+  }
+  return Object.values(groups)
+    .filter((g) => g.count >= minOccurrences)
+    .map((g) => ({ ...g, avg: g.total / g.count }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, limit)
+}
+
 export function getInvestmentGuidance(entries, income, currency, name = '') {
   const spent = totalSpent(entries)
   const remaining = income - spent
@@ -163,7 +185,14 @@ export function getInvestmentGuidance(entries, income, currency, name = '') {
   const savingsRate = income > 0 ? Math.max(income - spent, 0) / income : 0
   const you = name ? `${name}, ` : ''
   const cap = (s) => (you ? s : s.charAt(0).toUpperCase() + s.slice(1))
-  const suggestCategories = (limit) => {
+  const suggestSpending = (limit) => {
+    // Prefer a specific, nameable habit ("Iced Latte × 14, RM 168.00") — only fall
+    // back to a whole-category total when nothing repeats often enough to call a habit.
+    const habits = getSpendingHabits(entries, limit)
+    if (habits.length > 0) {
+      const list = habits.map((h) => `${h.name} × ${h.count} (${formatMoney(h.total, currency)})`).join(', ')
+      return ` A repeat habit worth cutting: ${list}.`
+    }
     const top = getTopSpendingCategories(entries, limit)
     if (top.length === 0) return ''
     const list = top.map((t) => `${t.category} (${formatMoney(t.amount, currency)})`).join(', ')
@@ -185,7 +214,7 @@ export function getInvestmentGuidance(entries, income, currency, name = '') {
   if (remaining < 0) {
     return {
       tone: 'warning',
-      message: `${you}${cap("you've spent more than you earned this period.")}${suggestCategories(2)}`
+      message: `${you}${cap("you've spent more than you earned this period.")}${suggestSpending(2)}`
     }
   }
   const emergencySpent = getEmergencySpend(entries)
@@ -198,7 +227,7 @@ export function getInvestmentGuidance(entries, income, currency, name = '') {
   if (savingsRate < targets.savings.pct) {
     return {
       tone: 'caution',
-      message: `${you}${cap(`savings are at ${(savingsRate * 100).toFixed(0)}% of income. Aim to raise Savings toward ${(targets.savings.pct * 100).toFixed(0)}%.`)}${suggestCategories(2)}`
+      message: `${you}${cap(`savings are at ${(savingsRate * 100).toFixed(0)}% of income. Aim to raise Savings toward ${(targets.savings.pct * 100).toFixed(0)}%.`)}${suggestSpending(2)}`
     }
   }
   return {
@@ -227,14 +256,17 @@ export function getMonthlyTrend(entries, months = 6) {
   return buckets
 }
 
-export function getCategoryBreakdown(entries, months = 6) {
+export function filterRecentMonths(entries, months = 6) {
   const now = new Date()
   const cutoff = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1)
   const cutoffKey = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}`
+  return entries.filter((e) => e.date && e.date.slice(0, 7) >= cutoffKey)
+}
+
+export function getCategoryBreakdown(entries, months = 6) {
   const totals = {}
   let total = 0
-  for (const e of expensesOf(entries)) {
-    if (!e.date || e.date.slice(0, 7) < cutoffKey) continue
+  for (const e of expensesOf(filterRecentMonths(entries, months))) {
     const cat = e.category || 'Uncategorized'
     totals[cat] = (totals[cat] || 0) + e.amount
     total += e.amount

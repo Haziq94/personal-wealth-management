@@ -1,5 +1,5 @@
-import { BarChart3, PieChart, Receipt } from 'lucide-react'
-import { getMonthlyTrend, getCategoryBreakdown, formatMoney, formatPct } from '../lib/finance'
+import { BarChart3, PieChart, Repeat, Receipt } from 'lucide-react'
+import { getMonthlyTrend, getCategoryBreakdown, getSpendingHabits, filterRecentMonths, formatMoney, formatPct } from '../lib/finance'
 import { categoryIcon } from '../lib/categoryIcons'
 
 const MONTHS = 6
@@ -16,6 +16,7 @@ export default function Analytics({ currency, entries }) {
 
   const trend = getMonthlyTrend(entries, MONTHS)
   const breakdown = getCategoryBreakdown(entries, MONTHS)
+  const habits = getSpendingHabits(filterRecentMonths(entries, MONTHS), 5, 4)
   const totalIncome = trend.reduce((sum, m) => sum + m.income, 0)
   const totalSpent = trend.reduce((sum, m) => sum + m.spent, 0)
   const net = totalIncome - totalSpent
@@ -99,6 +100,32 @@ export default function Analytics({ currency, entries }) {
           )
         })}
       </div>
+
+      {habits.length > 0 && (
+        <div className="bg-surface border hairline">
+          <div className="p-4 pb-1">
+            <h3 className="font-display text-base mb-1 flex items-center gap-1.5">
+              <Repeat size={17} className="text-emerald" strokeWidth={1.75} />
+              Repeat purchases
+            </h3>
+            <p className="text-xs text-muted">
+              Same-named items bought 4+ times in the last {MONTHS} months — often the easiest place to cut, since
+              it's a specific habit rather than a whole category.
+            </p>
+          </div>
+          {habits.map((h) => (
+            <div key={h.name} className="flex items-center justify-between px-4 py-3 border-b hairline last:border-b-0 gap-2">
+              <div className="min-w-0">
+                <div className="text-sm truncate">{h.name}</div>
+                <div className="text-xs text-muted">
+                  {h.count}× · avg {formatMoney(h.avg, currency)} each
+                </div>
+              </div>
+              <span className="num text-sm shrink-0">{formatMoney(h.total, currency)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
