@@ -4,8 +4,8 @@ import { formatPct } from '../lib/finance'
 const LABELS = { needs: 'Needs', wants: 'Wants', savings: 'Savings' }
 const CAPTIONS = {
   needs: 'target = your commitments',
-  wants: 'target = half of what commitments leave behind',
-  savings: 'target = half of what commitments leave behind'
+  wants: 'target = capped near your commitments — extra surplus goes to Savings',
+  savings: 'target = everything left after Needs and Wants — grows fastest on a bonus'
 }
 const COLORS = { needs: 'var(--color-cat-needs)', wants: 'var(--color-cat-wants)', savings: 'var(--color-cat-savings)' }
 const ICONS = { needs: House, wants: ShoppingBag, savings: Landmark }
@@ -51,7 +51,7 @@ export default function AllocationBar({ allocation }) {
         <Scale size={17} className="text-emerald" strokeWidth={1.75} />
         Budget Allocation
       </h3>
-      <p className="text-xs text-muted mb-2">Needs is set to your commitments; the balance splits evenly into Wants and Savings.</p>
+      <p className="text-xs text-muted mb-2">Needs is set to your commitments. Wants is capped near that same amount — any extra, like a bonus, flows straight to Savings.</p>
       {Object.entries(allocation).map(([cat, data]) => (
         <Row key={cat} cat={cat} data={data} />
       ))}

@@ -48,8 +48,10 @@ export function totalSpent(entries) {
 export function getAllocationTargets(entries, income) {
   const needsAmount = getCommitments(entries).total
   const balance = Math.max(income - needsAmount, 0)
-  const wantsAmount = balance / 2
-  const savingsAmount = balance / 2
+  // Wants gets at most half the surplus, capped at your commitments size (a reasonable
+  // lifestyle ceiling) — any surplus beyond that, including bonuses, flows to Savings.
+  const wantsAmount = Math.min(balance / 2, needsAmount)
+  const savingsAmount = balance - wantsAmount
   const pct = (amount) => (income > 0 ? amount / income : 0)
   return {
     needs: { amount: needsAmount, pct: pct(needsAmount) },
