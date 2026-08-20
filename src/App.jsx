@@ -1,19 +1,32 @@
 import { useEffect, useState } from 'react'
-import { LayoutDashboard, ArrowLeftRight, Repeat, Landmark, Settings as SettingsIcon } from 'lucide-react'
-import { loadState, saveState, exportState, importState } from './lib/storage'
+import {
+  LayoutDashboard,
+  ArrowLeftRight,
+  Repeat,
+  Landmark,
+  Settings as SettingsIcon,
+  BarChart3,
+  ShieldCheck
+} from 'lucide-react'
+import { loadState, saveState, exportState, importState, makeId } from './lib/storage'
+import { nowLocalISO, currentMonthKey } from './lib/finance'
 import NavBar from './components/NavBar'
 import Dashboard from './components/Dashboard'
+import Analytics from './components/Analytics'
 import Transactions from './components/Transactions'
 import Commitments from './components/Commitments'
-import SavingsGoals from './components/SavingsGoals'
+import Savings from './components/Savings'
+import Tax from './components/Tax'
 import Settings from './components/Settings'
 import LockScreen from './components/LockScreen'
 
 const TITLES = {
   dashboard: { label: 'Dashboard', icon: LayoutDashboard },
+  analytics: { label: 'Analytics', icon: BarChart3 },
   transactions: { label: 'Transactions', icon: ArrowLeftRight },
   commitments: { label: 'Commitments', icon: Repeat },
   savings: { label: 'Savings & Investing', icon: Landmark },
+  tax: { label: 'Tax', icon: ShieldCheck },
   settings: { label: 'Settings', icon: SettingsIcon }
 }
 
@@ -62,16 +75,76 @@ export default function App() {
     setState((s) => ({ ...s, entries: s.entries.filter((e) => e.id !== id) }))
   }
 
-  function handleAddGoal(goal) {
-    setState((s) => ({ ...s, goals: [...s.goals, goal] }))
+  function handleAddAccount(account) {
+    setState((s) => ({ ...s, accounts: [...s.accounts, account] }))
   }
 
-  function handleRemoveGoal(id) {
-    setState((s) => ({ ...s, goals: s.goals.filter((g) => g.id !== id) }))
+  function handleRemoveAccount(id) {
+    setState((s) => ({ ...s, accounts: s.accounts.filter((a) => a.id !== id) }))
   }
 
-  function handleUpdateSaved(id, saved) {
-    setState((s) => ({ ...s, goals: s.goals.map((g) => (g.id === id ? { ...g, saved } : g)) }))
+  function handleAddCategory(name) {
+    setState((s) => (s.categories.includes(name) ? s : { ...s, categories: [...s.categories, name] }))
+  }
+
+  function handleRemoveCategory(name) {
+    setState((s) => ({ ...s, categories: s.categories.filter((c) => c !== name) }))
+  }
+
+  function handleAddAccountType(type) {
+    setState((s) => (s.accountTypes.includes(type) ? s : { ...s, accountTypes: [...s.accountTypes, type] }))
+  }
+
+  function handleAddCommitment(commitment) {
+    setState((s) => ({ ...s, commitments: [...s.commitments, commitment] }))
+  }
+
+  function handleUpdateCommitment(id, patch) {
+    setState((s) => ({ ...s, commitments: s.commitments.map((c) => (c.id === id ? { ...c, ...patch } : c)) }))
+  }
+
+  function handleRemoveCommitment(id) {
+    setState((s) => ({ ...s, commitments: s.commitments.filter((c) => c.id !== id) }))
+  }
+
+  function handleMarkCommitmentPaid(commitment) {
+    const period = currentMonthKey()
+    const entry = {
+      id: makeId(),
+      name: commitment.name,
+      amount: commitment.monthlyPayment,
+      type: 'expense',
+      category: commitment.category || null,
+      recurring: true,
+      date: nowLocalISO(),
+      accountId: commitment.accountId || null,
+      fromAccountId: null,
+      toAccountId: null,
+      receiptId: null,
+      taxDeductible: false,
+      commitmentId: commitment.id
+    }
+    setState((s) => ({
+      ...s,
+      entries: [...s.entries, entry],
+      commitments: s.commitments.map((c) =>
+        c.id === commitment.id
+          ? { ...c, lastPaidPeriod: period, balance: c.balance != null ? Math.max(c.balance - c.monthlyPayment, 0) : null }
+          : c
+      )
+    }))
+  }
+
+  function handleAddPayslip(payslip) {
+    setState((s) => ({ ...s, payslips: [...s.payslips, payslip] }))
+  }
+
+  function handleRemovePayslip(id) {
+    setState((s) => ({ ...s, payslips: s.payslips.filter((p) => p.id !== id) }))
+  }
+
+  function handleRemoveAccountType(type) {
+    setState((s) => ({ ...s, accountTypes: s.accountTypes.filter((t) => t !== type) }))
   }
 
   async function handleImportFile(e) {
@@ -132,21 +205,54 @@ export default function App() {
             name={state.name}
             currency={state.currency}
             entries={state.entries}
-            goals={state.goals}
+            accounts={state.accounts}
             onGoToTransactions={() => setTab('transactions')}
           />
         )}
+        {tab === 'analytics' && <Analytics currency={state.currency} entries={state.entries} />}
         {tab === 'transactions' && (
-          <Transactions currency={state.currency} entries={state.entries} onAdd={handleAddEntry} onRemove={handleRemoveEntry} />
-        )}
-        {tab === 'commitments' && <Commitments currency={state.currency} entries={state.entries} />}
-        {tab === 'savings' && (
-          <SavingsGoals
+          <Transactions
             currency={state.currency}
-            goals={state.goals}
-            onAdd={handleAddGoal}
-            onRemove={handleRemoveGoal}
-            onUpdateSaved={handleUpdateSaved}
+            entries={state.entries}
+            accounts={state.accounts}
+            categories={state.categories}
+            onAdd={handleAddEntry}
+            onRemove={handleRemoveEntry}
+            onAddCategory={handleAddCategory}
+            onAddAccount={handleAddAccount}
+          />
+        )}
+        {tab === 'commitments' && (
+          <Commitments
+            currency={state.currency}
+            commitments={state.commitments}
+            accounts={state.accounts}
+            categories={state.categories}
+            onAddCommitment={handleAddCommitment}
+            onUpdateCommitment={handleUpdateCommitment}
+            onRemoveCommitment={handleRemoveCommitment}
+            onMarkPaid={handleMarkCommitmentPaid}
+            onAddCategory={handleAddCategory}
+          />
+        )}
+        {tab === 'savings' && (
+          <Savings
+            currency={state.currency}
+            entries={state.entries}
+            accounts={state.accounts}
+            accountTypes={state.accountTypes}
+            onAddAccount={handleAddAccount}
+            onRemoveAccount={handleRemoveAccount}
+            onAddAccountType={handleAddAccountType}
+          />
+        )}
+        {tab === 'tax' && (
+          <Tax
+            currency={state.currency}
+            entries={state.entries}
+            payslips={state.payslips}
+            onAddPayslip={handleAddPayslip}
+            onRemovePayslip={handleRemovePayslip}
           />
         )}
         {tab === 'settings' && (
@@ -159,6 +265,12 @@ export default function App() {
             importError={importError}
             onSecurityChange={handleSecurityChange}
             onPinReset={handleSecuritySetupComplete}
+            onAddAccount={handleAddAccount}
+            onRemoveAccount={handleRemoveAccount}
+            onAddCategory={handleAddCategory}
+            onRemoveCategory={handleRemoveCategory}
+            onAddAccountType={handleAddAccountType}
+            onRemoveAccountType={handleRemoveAccountType}
           />
         )}
       </main>
