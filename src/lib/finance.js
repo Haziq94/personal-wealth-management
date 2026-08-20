@@ -23,8 +23,6 @@ export function todayISO(date = new Date()) {
 
 export const CATEGORIES = ['needs', 'wants', 'savings']
 
-export const TARGETS = { needs: 0.5, wants: 0.3, savings: 0.2 }
-
 export function expensesOf(entries) {
   return entries.filter((e) => e.type !== 'income')
 }
@@ -47,13 +45,28 @@ export function totalSpent(entries) {
   return expensesOf(entries).reduce((total, e) => total + e.amount, 0)
 }
 
+export function getAllocationTargets(entries, income) {
+  const needsAmount = getCommitments(entries).total
+  const balance = Math.max(income - needsAmount, 0)
+  const wantsAmount = balance / 2
+  const savingsAmount = balance / 2
+  const pct = (amount) => (income > 0 ? amount / income : 0)
+  return {
+    needs: { amount: needsAmount, pct: pct(needsAmount) },
+    wants: { amount: wantsAmount, pct: pct(wantsAmount) },
+    savings: { amount: savingsAmount, pct: pct(savingsAmount) }
+  }
+}
+
 export function getAllocation(entries, income) {
+  const targets = getAllocationTargets(entries, income)
   return CATEGORIES.reduce((acc, cat) => {
     const spent = sumByCategory(entries, cat)
     acc[cat] = {
       spent,
       pct: income > 0 ? spent / income : 0,
-      target: TARGETS[cat]
+      target: targets[cat].pct,
+      targetAmount: targets[cat].amount
     }
     return acc
   }, {})
@@ -84,6 +97,7 @@ export function getCommitments(entries) {
 export function getInvestmentGuidance(entries, goals, income, name = '') {
   const spent = totalSpent(entries)
   const remaining = income - spent
+  const targets = getAllocationTargets(entries, income)
   const savingsRate = income > 0 ? sumByCategory(entries, 'savings') / income : 0
   const emergencyGoal = goals.find((g) => g.name.toLowerCase().includes('emergency'))
   const you = name ? `${name}, ` : ''
@@ -95,16 +109,22 @@ export function getInvestmentGuidance(entries, goals, income, name = '') {
       message: `${you}${cap('log your income as a transaction to see personalized guidance here.')}`
     }
   }
+  if (targets.needs.amount > income) {
+    return {
+      tone: 'warning',
+      message: `${you}${cap('your recurring commitments exceed your income this period. Review Commitments before anything else.')}`
+    }
+  }
   if (remaining < 0) {
     return {
       tone: 'warning',
       message: `${you}${cap("you've spent more than you earned this month. Trim Wants spending first before anything else.")}`
     }
   }
-  if (savingsRate < TARGETS.savings) {
+  if (savingsRate < targets.savings.pct) {
     return {
       tone: 'caution',
-      message: `${you}${cap(`savings are at ${(savingsRate * 100).toFixed(0)}% of income. Aim to raise Savings toward 20% before investing more.`)}`
+      message: `${you}${cap(`savings are at ${(savingsRate * 100).toFixed(0)}% of income. Aim to raise Savings toward ${(targets.savings.pct * 100).toFixed(0)}% before investing more.`)}`
     }
   }
   if (!emergencyGoal || emergencyGoal.saved < emergencyGoal.target) {

@@ -2,11 +2,18 @@ import { House, ShoppingBag, Landmark, Scale } from 'lucide-react'
 import { formatPct } from '../lib/finance'
 
 const LABELS = { needs: 'Needs', wants: 'Wants', savings: 'Savings' }
+const CAPTIONS = {
+  needs: 'target = your commitments',
+  wants: 'target = half of what commitments leave behind',
+  savings: 'target = half of what commitments leave behind'
+}
 const COLORS = { needs: 'var(--color-cat-needs)', wants: 'var(--color-cat-wants)', savings: 'var(--color-cat-savings)' }
 const ICONS = { needs: House, wants: ShoppingBag, savings: Landmark }
 
 function Row({ cat, data }) {
-  const barWidth = Math.min((data.pct / (data.target * 1.5)) * 100, 100)
+  const laneMax = data.target > 0 ? data.target * 1.5 : Math.max(data.pct, 0.1)
+  const barWidth = Math.min((data.pct / laneMax) * 100, 100)
+  const markerPos = data.target > 0 ? Math.min((data.target / laneMax) * 100, 100) : 0
   const over = data.pct > data.target
   const Icon = ICONS[cat]
 
@@ -29,9 +36,10 @@ function Row({ cat, data }) {
         />
         <div
           className="absolute top-0 bottom-0 w-px bg-ink/40"
-          style={{ left: `${Math.min((data.target / (data.target * 1.5)) * 100, 100)}%` }}
+          style={{ left: `${markerPos}%` }}
         />
       </div>
+      <p className="text-[11px] text-muted mt-1">{CAPTIONS[cat]}</p>
     </div>
   )
 }
@@ -41,9 +49,9 @@ export default function AllocationBar({ allocation }) {
     <div className="bg-surface border hairline p-4">
       <h3 className="font-display text-base mb-1 flex items-center gap-1.5">
         <Scale size={17} className="text-emerald" strokeWidth={1.75} />
-        50 / 30 / 20 Allocation
+        Budget Allocation
       </h3>
-      <p className="text-xs text-muted mb-2">Actual spend against target, as a share of income</p>
+      <p className="text-xs text-muted mb-2">Needs is set to your commitments; the balance splits evenly into Wants and Savings.</p>
       {Object.entries(allocation).map(([cat, data]) => (
         <Row key={cat} cat={cat} data={data} />
       ))}
