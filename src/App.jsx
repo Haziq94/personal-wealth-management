@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { LayoutDashboard, ArrowLeftRight, Repeat, Landmark, Settings as SettingsIcon } from 'lucide-react'
 import { loadState, saveState, exportState, importState } from './lib/storage'
 import NavBar from './components/NavBar'
@@ -7,6 +7,9 @@ import Transactions from './components/Transactions'
 import Commitments from './components/Commitments'
 import SavingsGoals from './components/SavingsGoals'
 import Settings from './components/Settings'
+import LockScreen from './components/LockScreen'
+
+const RELOCK_AFTER_HIDDEN_MS = 30 * 1000
 
 const TITLES = {
   dashboard: { label: 'Dashboard', icon: LayoutDashboard },
@@ -20,6 +23,9 @@ export default function App() {
   const [state, setState] = useState(loadState)
   const [tab, setTab] = useState('dashboard')
   const [importError, setImportError] = useState('')
+  // Force setup when there's no PIN yet, and lock every open when a PIN exists and is enabled.
+  const [locked, setLocked] = useState(() => !state.security?.pinHash || !!state.security?.enabled)
+  const hiddenAtRef = useRef(null)
 
   const appTitle = state.name ? `${state.name}'s Wealth` : 'My Wealth'
 
@@ -30,6 +36,26 @@ export default function App() {
   useEffect(() => {
     document.title = appTitle
   }, [appTitle])
+
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (document.visibilityState === 'hidden') {
+        hiddenAtRef.current = Date.now()
+        return
+      }
+      if (
+        document.visibilityState === 'visible' &&
+        state.security?.enabled &&
+        hiddenAtRef.current &&
+        Date.now() - hiddenAtRef.current > RELOCK_AFTER_HIDDEN_MS
+      ) {
+        setLocked(true)
+      }
+      hiddenAtRef.current = null
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange)
+  }, [state.security?.enabled])
 
   function handleNameChange(name) {
     setState((s) => ({ ...s, name }))
@@ -64,7 +90,8 @@ export default function App() {
     if (!file) return
     try {
       const imported = await importState(file)
-      setState(imported)
+      // security is device-local — a restored backup never touches this phone's lock setup.
+      setState((s) => ({ ...imported, security: s.security }))
       setImportError('')
     } catch (err) {
       setImportError(err.message)
@@ -73,7 +100,27 @@ export default function App() {
     }
   }
 
+  function handleSecuritySetupComplete(patch) {
+    setState((s) => ({ ...s, security: { ...s.security, ...patch, enabled: true } }))
+    setLocked(false)
+  }
+
+  function handleSecurityChange(patch) {
+    setState((s) => ({ ...s, security: { ...s.security, ...patch } }))
+  }
+
   const TabIcon = TITLES[tab].icon
+
+  if (locked) {
+    return (
+      <LockScreen
+        security={state.security}
+        name={state.name}
+        onSetupComplete={handleSecuritySetupComplete}
+        onUnlock={() => setLocked(false)}
+      />
+    )
+  }
 
   return (
     <div className="min-h-screen pb-24">
@@ -121,6 +168,8 @@ export default function App() {
             onExport={() => exportState(state)}
             onImport={handleImportFile}
             importError={importError}
+            onSecurityChange={handleSecurityChange}
+            onPinReset={handleSecuritySetupComplete}
           />
         )}
       </main>

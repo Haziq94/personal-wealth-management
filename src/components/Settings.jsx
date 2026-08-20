@@ -1,16 +1,66 @@
-import { useRef, useState } from 'react'
-import { UserRound, Download, Upload, Smartphone, Check, Coins, ChevronDown } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { UserRound, Download, Upload, Smartphone, Check, Coins, ChevronDown, ShieldCheck, Fingerprint } from 'lucide-react'
 import { CURRENCIES } from '../lib/finance'
+import { isBiometricAvailable, registerBiometric } from '../lib/security'
+import LockScreen from './LockScreen'
 
-export default function Settings({ state, onNameChange, onCurrencyChange, onExport, onImport, importError }) {
+export default function Settings({
+  state,
+  onNameChange,
+  onCurrencyChange,
+  onExport,
+  onImport,
+  importError,
+  onSecurityChange,
+  onPinReset
+}) {
   const [name, setName] = useState(state.name)
   const [saved, setSaved] = useState(false)
+  const [biometricAvailable, setBiometricAvailable] = useState(false)
+  const [changingPin, setChangingPin] = useState(false)
+  const [biometricError, setBiometricError] = useState('')
   const fileInputRef = useRef(null)
+  const security = state.security ?? {}
+
+  useEffect(() => {
+    isBiometricAvailable().then(setBiometricAvailable)
+  }, [])
 
   function handleNameBlur() {
     onNameChange(name)
     setSaved(true)
     setTimeout(() => setSaved(false), 1200)
+  }
+
+  function handlePinResetComplete(patch) {
+    onPinReset(patch)
+    setChangingPin(false)
+  }
+
+  async function handleBiometricToggle(enable) {
+    setBiometricError('')
+    if (!enable) {
+      onSecurityChange({ biometricEnabled: false, credentialId: null })
+      return
+    }
+    try {
+      const credentialId = await registerBiometric(state.name)
+      onSecurityChange({ biometricEnabled: true, credentialId })
+    } catch {
+      setBiometricError('Could not set up biometric unlock on this device.')
+    }
+  }
+
+  if (changingPin) {
+    return (
+      <LockScreen
+        security={security}
+        name={state.name}
+        mode="setup"
+        onSetupComplete={handlePinResetComplete}
+        onCancel={() => setChangingPin(false)}
+      />
+    )
   }
 
   return (
@@ -59,6 +109,43 @@ export default function Settings({ state, onNameChange, onCurrencyChange, onExpo
           Used for Dashboard, allocation and guidance totals. When logging a transaction in another currency, enter
           the exchange rate at the time and it's converted to this currency automatically.
         </p>
+      </div>
+
+      <div className="bg-surface border hairline p-4 space-y-3">
+        <h3 className="font-display text-base flex items-center gap-1.5">
+          <ShieldCheck size={18} className="text-emerald" strokeWidth={1.75} />
+          App lock
+        </h3>
+        <label className="flex items-center gap-2 text-sm py-1 min-h-[32px]">
+          <input
+            type="checkbox"
+            className="w-4 h-4"
+            checked={!!security.enabled}
+            disabled={!security.pinHash}
+            onChange={(e) => onSecurityChange({ enabled: e.target.checked })}
+          />
+          Require PIN to open the app
+        </label>
+        {biometricAvailable && security.pinHash && (
+          <label className="flex items-center gap-2 text-sm py-1 min-h-[32px]">
+            <input
+              type="checkbox"
+              className="w-4 h-4"
+              checked={!!security.biometricEnabled}
+              onChange={(e) => handleBiometricToggle(e.target.checked)}
+            />
+            <Fingerprint size={14} className="text-muted" />
+            Also allow fingerprint / face unlock
+          </label>
+        )}
+        {biometricError && <p className="text-xs text-rust">{biometricError}</p>}
+        <button
+          onClick={() => setChangingPin(true)}
+          className="w-full border hairline py-2.5 min-h-[44px] text-sm text-ink hover:border-emerald hover:text-emerald"
+        >
+          {security.pinHash ? 'Change PIN' : 'Set up PIN'}
+        </button>
+        <p className="text-xs text-muted">Your PIN is stored only on this device, hashed — never in your backup file.</p>
       </div>
 
       <div className="bg-surface border hairline p-4 space-y-3">

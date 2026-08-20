@@ -2,11 +2,31 @@ import { CURRENCIES, DEFAULT_CURRENCY, todayISO } from './finance'
 
 const STORAGE_KEY = 'wealth-ledger:v1'
 
+const DEFAULT_SECURITY = {
+  enabled: false,
+  pinHash: null,
+  salt: null,
+  biometricEnabled: false,
+  credentialId: null
+}
+
 const DEFAULT_STATE = {
   name: 'Haziq',
   currency: DEFAULT_CURRENCY,
   entries: [],
-  goals: []
+  goals: [],
+  security: DEFAULT_SECURITY
+}
+
+function normalizeSecurity(security) {
+  if (!security || typeof security !== 'object') return { ...DEFAULT_SECURITY }
+  return {
+    enabled: !!security.enabled,
+    pinHash: typeof security.pinHash === 'string' ? security.pinHash : null,
+    salt: typeof security.salt === 'string' ? security.salt : null,
+    biometricEnabled: !!security.biometricEnabled,
+    credentialId: typeof security.credentialId === 'string' ? security.credentialId : null
+  }
 }
 
 function normalizeCurrency(currency) {
@@ -52,7 +72,8 @@ export function loadState() {
       name: typeof parsed.name === 'string' ? parsed.name : DEFAULT_STATE.name,
       currency: normalizeCurrency(parsed.currency),
       entries: normalizeEntries(parsed.entries, parsed.income),
-      goals: Array.isArray(parsed.goals) ? parsed.goals : []
+      goals: Array.isArray(parsed.goals) ? parsed.goals : [],
+      security: normalizeSecurity(parsed.security)
     }
   } catch {
     return { ...DEFAULT_STATE, entries: [] }
@@ -64,8 +85,11 @@ export function saveState(state) {
 }
 
 export function exportState(state) {
+  // security (PIN hash/salt/biometric credential) is device-local and deliberately
+  // left out of backups — it never needs to travel and shouldn't sit in a JSON file.
+  const { security, ...rest } = state
   const payload = {
-    ...state,
+    ...rest,
     exportedAt: new Date().toISOString(),
     schema: 5
   }
@@ -91,6 +115,8 @@ export function importState(file) {
           reject(new Error('This file does not look like a valid Ledger backup.'))
           return
         }
+        // security is intentionally not restored from a backup file — it stays
+        // whatever this device already has (see exportState).
         resolve({
           name: typeof parsed.name === 'string' ? parsed.name : DEFAULT_STATE.name,
           currency: normalizeCurrency(parsed.currency),
