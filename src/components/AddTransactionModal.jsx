@@ -49,6 +49,13 @@ export default function AddTransactionModal({ currency, categories, accounts, on
     setTxnCurrency(currency)
   }, [currency])
 
+  useEffect(() => {
+    if (type !== 'expense') {
+      setCategory('')
+      setAddingCategory(false)
+    }
+  }, [type])
+
   const isForeign = txnCurrency !== currency
   const parsedAmount = parseFloat(amount)
   const parsedRate = parseFloat(rate)
@@ -205,43 +212,45 @@ export default function AddTransactionModal({ currency, categories, accounts, on
           </div>
         )}
 
-        <div>
-          <label className="block text-xs text-muted mb-1">Category</label>
-          {!addingCategory ? (
-            <select
-              value={category}
-              onChange={(e) => handleCategorySelect(e.target.value)}
-              className="w-full appearance-none border-b hairline bg-transparent py-2 text-base focus:outline-none focus:border-emerald"
-            >
-              <option value="">No category</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-              <option value={NEW_CATEGORY}>+ Add custom category</option>
-            </select>
-          ) : (
-            <div className="flex items-center gap-2">
-              <input
-                autoFocus
-                className="flex-1 border-b hairline bg-transparent py-2 text-base focus:outline-none focus:border-emerald"
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                placeholder="e.g. Subscriptions"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    confirmNewCategory()
-                  }
-                }}
-              />
-              <button type="button" onClick={confirmNewCategory} className="p-2 text-emerald" aria-label="Add category">
-                <Check size={18} />
-              </button>
-            </div>
-          )}
-        </div>
+        {type === 'expense' && (
+          <div>
+            <label className="block text-xs text-muted mb-1">Category</label>
+            {!addingCategory ? (
+              <select
+                value={category}
+                onChange={(e) => handleCategorySelect(e.target.value)}
+                className="w-full appearance-none border-b hairline bg-transparent py-2 text-base focus:outline-none focus:border-emerald"
+              >
+                <option value="">No category</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+                <option value={NEW_CATEGORY}>+ Add custom category</option>
+              </select>
+            ) : (
+              <div className="flex items-center gap-2">
+                <input
+                  autoFocus
+                  className="flex-1 border-b hairline bg-transparent py-2 text-base focus:outline-none focus:border-emerald"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder="e.g. Subscriptions"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      confirmNewCategory()
+                    }
+                  }}
+                />
+                <button type="button" onClick={confirmNewCategory} className="p-2 text-emerald" aria-label="Add category">
+                  <Check size={18} />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {type === 'expense' && (
           <div>
