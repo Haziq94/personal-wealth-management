@@ -8,7 +8,8 @@ import {
   BarChart3,
   ShieldCheck
 } from 'lucide-react'
-import { loadState, saveState, exportState, importState } from './lib/storage'
+import { loadState, saveState, exportState, importState, makeId } from './lib/storage'
+import { nowLocalISO, currentMonthKey } from './lib/finance'
 import NavBar from './components/NavBar'
 import Dashboard from './components/Dashboard'
 import Analytics from './components/Analytics'
@@ -92,6 +93,46 @@ export default function App() {
 
   function handleAddAccountType(type) {
     setState((s) => (s.accountTypes.includes(type) ? s : { ...s, accountTypes: [...s.accountTypes, type] }))
+  }
+
+  function handleAddCommitment(commitment) {
+    setState((s) => ({ ...s, commitments: [...s.commitments, commitment] }))
+  }
+
+  function handleUpdateCommitment(id, patch) {
+    setState((s) => ({ ...s, commitments: s.commitments.map((c) => (c.id === id ? { ...c, ...patch } : c)) }))
+  }
+
+  function handleRemoveCommitment(id) {
+    setState((s) => ({ ...s, commitments: s.commitments.filter((c) => c.id !== id) }))
+  }
+
+  function handleMarkCommitmentPaid(commitment) {
+    const period = currentMonthKey()
+    const entry = {
+      id: makeId(),
+      name: commitment.name,
+      amount: commitment.monthlyPayment,
+      type: 'expense',
+      category: commitment.category || null,
+      recurring: true,
+      date: nowLocalISO(),
+      accountId: commitment.accountId || null,
+      fromAccountId: null,
+      toAccountId: null,
+      receiptId: null,
+      taxDeductible: false,
+      commitmentId: commitment.id
+    }
+    setState((s) => ({
+      ...s,
+      entries: [...s.entries, entry],
+      commitments: s.commitments.map((c) =>
+        c.id === commitment.id
+          ? { ...c, lastPaidPeriod: period, balance: c.balance != null ? Math.max(c.balance - c.monthlyPayment, 0) : null }
+          : c
+      )
+    }))
   }
 
   function handleAddPayslip(payslip) {
@@ -184,11 +225,13 @@ export default function App() {
         {tab === 'commitments' && (
           <Commitments
             currency={state.currency}
-            entries={state.entries}
+            commitments={state.commitments}
             accounts={state.accounts}
             categories={state.categories}
-            onAdd={handleAddEntry}
-            onRemove={handleRemoveEntry}
+            onAddCommitment={handleAddCommitment}
+            onUpdateCommitment={handleUpdateCommitment}
+            onRemoveCommitment={handleRemoveCommitment}
+            onMarkPaid={handleMarkCommitmentPaid}
             onAddCategory={handleAddCategory}
           />
         )}

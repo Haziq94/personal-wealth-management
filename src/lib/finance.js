@@ -343,6 +343,20 @@ export function getPayslipSummary(payslips, year) {
   }
 }
 
+// Commitments use a calendar month ("YYYY-MM"), not the salary-anchored pay
+// period — a bill's due date doesn't move with when you got paid.
+export function currentMonthKey(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+export function isCommitmentPaidThisMonth(commitment) {
+  return commitment.lastPaidPeriod === currentMonthKey()
+}
+
+export function getCommitmentsTotal(commitments) {
+  return commitments.reduce((total, c) => total + (c.monthlyPayment || 0), 0)
+}
+
 export function getGreeting(date = new Date()) {
   const hour = date.getHours()
   if (hour < 5) return 'Burning the midnight oil,'

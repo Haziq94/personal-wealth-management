@@ -26,23 +26,14 @@ const TYPES = [
 
 const NEW_CATEGORY = '__new__'
 
-export default function AddTransactionModal({
-  currency,
-  categories,
-  accounts,
-  onAdd,
-  onAddCategory,
-  onClose,
-  initialType = 'expense',
-  initialRecurring = false
-}) {
-  const [type, setType] = useState(initialType)
+export default function AddTransactionModal({ currency, categories, accounts, onAdd, onAddCategory, onClose }) {
+  const [type, setType] = useState('expense')
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState('')
   const [addingCategory, setAddingCategory] = useState(false)
   const [newCategory, setNewCategory] = useState('')
-  const [recurring, setRecurring] = useState(initialRecurring)
+  const [recurring, setRecurring] = useState(false)
   const [txnCurrency, setTxnCurrency] = useState(currency)
   const [rate, setRate] = useState('')
   const [date, setDate] = useState(nowLocalISO)
