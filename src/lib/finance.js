@@ -145,7 +145,7 @@ export function getInvestmentGuidance(entries, goals, income, name = '') {
   if (remaining < 0) {
     return {
       tone: 'warning',
-      message: `${you}${cap("you've spent more than you earned this month. Trim Wants spending first before anything else.")}`
+      message: `${you}${cap("you've spent more than you earned this month. Trim Daily Budget spending first before anything else.")}`
     }
   }
   if (savingsRate < targets.savings.pct) {

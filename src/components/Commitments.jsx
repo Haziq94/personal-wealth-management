@@ -13,7 +13,7 @@ export default function Commitments({ currency, entries }) {
         </div>
         <div className="num text-2xl">{formatMoney(total, currency)}</div>
         <p className="text-xs text-muted mt-1">
-          Derived automatically from expenses flagged recurring — this is what the Dashboard treats as Needs.
+          Derived automatically from expenses flagged recurring — this is what the Dashboard treats as Commitment.
         </p>
       </div>
 

@@ -205,7 +205,7 @@ export default function Settings({
           Transaction categories
         </h3>
         <p className="text-xs text-muted">
-          Tag transactions with these — separate from the Dashboard's Needs/Wants/Savings budget groups.
+          Tag transactions with these — separate from the Dashboard's Commitment/Daily Budget/Savings budget groups.
         </p>
         {state.categories.length > 0 && (
           <div className="flex flex-wrap gap-2">
