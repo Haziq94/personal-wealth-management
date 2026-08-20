@@ -121,12 +121,11 @@ export function getCommitments(entries) {
   }
 }
 
-export function getInvestmentGuidance(entries, goals, income, name = '') {
+export function getInvestmentGuidance(entries, income, name = '') {
   const spent = totalSpent(entries)
   const remaining = income - spent
   const targets = getAllocationTargets(entries, income)
   const savingsRate = income > 0 ? Math.max(income - spent, 0) / income : 0
-  const emergencyGoal = goals.find((g) => g.name.toLowerCase().includes('emergency'))
   const you = name ? `${name}, ` : ''
   const cap = (s) => (you ? s : s.charAt(0).toUpperCase() + s.slice(1))
 
@@ -154,15 +153,9 @@ export function getInvestmentGuidance(entries, goals, income, name = '') {
       message: `${you}${cap(`savings are at ${(savingsRate * 100).toFixed(0)}% of income. Aim to raise Savings toward ${(targets.savings.pct * 100).toFixed(0)}% before investing more.`)}`
     }
   }
-  if (!emergencyGoal || emergencyGoal.saved < emergencyGoal.target) {
-    return {
-      tone: 'caution',
-      message: `${you}${cap('build 3–6 months of essential expenses into an emergency fund before investing your surplus.')}`
-    }
-  }
   return {
     tone: 'good',
-    message: `${you}${cap('savings are healthy and your emergency fund is covered. Consider directing monthly surplus into diversified, low-cost investments.')}`
+    message: `${you}${cap('savings are healthy. Keep 3–6 months of essential expenses accessible, then consider directing surplus into diversified, low-cost investments.')}`
   }
 }
 

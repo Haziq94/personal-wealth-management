@@ -6,7 +6,7 @@ import Dashboard from './components/Dashboard'
 import Analytics from './components/Analytics'
 import Transactions from './components/Transactions'
 import Commitments from './components/Commitments'
-import SavingsGoals from './components/SavingsGoals'
+import Savings from './components/Savings'
 import Settings from './components/Settings'
 import LockScreen from './components/LockScreen'
 
@@ -64,18 +64,6 @@ export default function App() {
     setState((s) => ({ ...s, entries: s.entries.filter((e) => e.id !== id) }))
   }
 
-  function handleAddGoal(goal) {
-    setState((s) => ({ ...s, goals: [...s.goals, goal] }))
-  }
-
-  function handleRemoveGoal(id) {
-    setState((s) => ({ ...s, goals: s.goals.filter((g) => g.id !== id) }))
-  }
-
-  function handleUpdateSaved(id, saved) {
-    setState((s) => ({ ...s, goals: s.goals.map((g) => (g.id === id ? { ...g, saved } : g)) }))
-  }
-
   function handleAddAccount(account) {
     setState((s) => ({ ...s, accounts: [...s.accounts, account] }))
   }
@@ -90,6 +78,14 @@ export default function App() {
 
   function handleRemoveCategory(name) {
     setState((s) => ({ ...s, categories: s.categories.filter((c) => c !== name) }))
+  }
+
+  function handleAddAccountType(type) {
+    setState((s) => (s.accountTypes.includes(type) ? s : { ...s, accountTypes: [...s.accountTypes, type] }))
+  }
+
+  function handleRemoveAccountType(type) {
+    setState((s) => ({ ...s, accountTypes: s.accountTypes.filter((t) => t !== type) }))
   }
 
   async function handleImportFile(e) {
@@ -150,7 +146,6 @@ export default function App() {
             name={state.name}
             currency={state.currency}
             entries={state.entries}
-            goals={state.goals}
             onGoToTransactions={() => setTab('transactions')}
           />
         )}
@@ -169,12 +164,14 @@ export default function App() {
         )}
         {tab === 'commitments' && <Commitments currency={state.currency} entries={state.entries} />}
         {tab === 'savings' && (
-          <SavingsGoals
+          <Savings
             currency={state.currency}
-            goals={state.goals}
-            onAdd={handleAddGoal}
-            onRemove={handleRemoveGoal}
-            onUpdateSaved={handleUpdateSaved}
+            entries={state.entries}
+            accounts={state.accounts}
+            accountTypes={state.accountTypes}
+            onAddAccount={handleAddAccount}
+            onRemoveAccount={handleRemoveAccount}
+            onAddAccountType={handleAddAccountType}
           />
         )}
         {tab === 'settings' && (
@@ -191,6 +188,8 @@ export default function App() {
             onRemoveAccount={handleRemoveAccount}
             onAddCategory={handleAddCategory}
             onRemoveCategory={handleRemoveCategory}
+            onAddAccountType={handleAddAccountType}
+            onRemoveAccountType={handleRemoveAccountType}
           />
         )}
       </main>

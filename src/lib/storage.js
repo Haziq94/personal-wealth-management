@@ -14,9 +14,9 @@ const DEFAULT_STATE = {
   name: 'Haziq',
   currency: DEFAULT_CURRENCY,
   entries: [],
-  goals: [],
   accounts: [],
   categories: [...DEFAULT_CATEGORIES],
+  accountTypes: [],
   security: DEFAULT_SECURITY
 }
 
@@ -48,8 +48,15 @@ function normalizeAccounts(accounts) {
     .map((a) => ({
       id: typeof a.id === 'string' ? a.id : makeId(),
       name: a.name,
-      openingBalance: typeof a.openingBalance === 'number' ? a.openingBalance : 0
+      openingBalance: typeof a.openingBalance === 'number' ? a.openingBalance : 0,
+      type: typeof a.type === 'string' && a.type.trim() ? a.type : null,
+      isSavings: !!a.isSavings
     }))
+}
+
+function normalizeAccountTypes(accountTypes) {
+  if (!Array.isArray(accountTypes)) return []
+  return [...new Set(accountTypes.filter((t) => typeof t === 'string' && t.trim()))]
 }
 
 // Datetime-local format ("YYYY-MM-DDTHH:mm"); older backups only stored a bare
@@ -106,19 +113,19 @@ function normalizeEntries(rawEntries, legacyIncome) {
 export function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { ...DEFAULT_STATE, entries: [], accounts: [], categories: [...DEFAULT_CATEGORIES] }
+    if (!raw) return { ...DEFAULT_STATE, entries: [], accounts: [], categories: [...DEFAULT_CATEGORIES], accountTypes: [] }
     const parsed = JSON.parse(raw)
     return {
       name: typeof parsed.name === 'string' ? parsed.name : DEFAULT_STATE.name,
       currency: normalizeCurrency(parsed.currency),
       entries: normalizeEntries(parsed.entries, parsed.income),
-      goals: Array.isArray(parsed.goals) ? parsed.goals : [],
       accounts: normalizeAccounts(parsed.accounts),
       categories: normalizeCategories(parsed.categories),
+      accountTypes: normalizeAccountTypes(parsed.accountTypes),
       security: normalizeSecurity(parsed.security)
     }
   } catch {
-    return { ...DEFAULT_STATE, entries: [], accounts: [], categories: [...DEFAULT_CATEGORIES] }
+    return { ...DEFAULT_STATE, entries: [], accounts: [], categories: [...DEFAULT_CATEGORIES], accountTypes: [] }
   }
 }
 
@@ -133,7 +140,7 @@ export function exportState(state) {
   const payload = {
     ...rest,
     exportedAt: new Date().toISOString(),
-    schema: 6
+    schema: 7
   }
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -153,19 +160,21 @@ export function importState(file) {
     reader.onload = () => {
       try {
         const parsed = JSON.parse(reader.result)
-        if (!Array.isArray(parsed.entries) || !Array.isArray(parsed.goals)) {
+        if (!Array.isArray(parsed.entries)) {
           reject(new Error('This file does not look like a valid Ledger backup.'))
           return
         }
         // security is intentionally not restored from a backup file — it stays
-        // whatever this device already has (see exportState).
+        // whatever this device already has (see exportState). Old backups may carry
+        // a `goals` array from before Savings accounts replaced manual goals — it's
+        // simply dropped, not migrated.
         resolve({
           name: typeof parsed.name === 'string' ? parsed.name : DEFAULT_STATE.name,
           currency: normalizeCurrency(parsed.currency),
           entries: normalizeEntries(parsed.entries, parsed.income),
-          goals: parsed.goals,
           accounts: normalizeAccounts(parsed.accounts),
-          categories: normalizeCategories(parsed.categories)
+          categories: normalizeCategories(parsed.categories),
+          accountTypes: normalizeAccountTypes(parsed.accountTypes)
         })
       } catch {
         reject(new Error('Could not parse this file as JSON.'))

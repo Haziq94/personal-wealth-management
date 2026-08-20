@@ -18,14 +18,14 @@ const TONE_STYLES = {
   good: { box: 'border-emerald bg-emerald/5 text-emerald', icon: Sparkles }
 }
 
-export default function Dashboard({ name, currency, entries, goals, onGoToTransactions }) {
+export default function Dashboard({ name, currency, entries, onGoToTransactions }) {
   const periodStart = getPeriodStart(entries)
   const periodEntries = getCurrentPeriodEntries(entries)
   const income = totalIncome(periodEntries)
   const spent = totalSpent(periodEntries)
   const remaining = income - spent
   const allocation = getAllocation(periodEntries, income)
-  const guidance = getInvestmentGuidance(periodEntries, goals, income, name)
+  const guidance = getInvestmentGuidance(periodEntries, income, name)
   const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
   const ToneIcon = TONE_STYLES[guidance.tone].icon
 
