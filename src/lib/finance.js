@@ -178,7 +178,7 @@ export function getSpendingHabits(entries, limit = 3, minOccurrences = 3) {
     .slice(0, limit)
 }
 
-export function getInvestmentGuidance(entries, income, currency, name = '') {
+export function getInvestmentGuidance(entries, income, currency, accounts = [], allEntries = entries, name = '') {
   const spent = totalSpent(entries)
   const remaining = income - spent
   const targets = getAllocationTargets(entries, income)
@@ -219,9 +219,18 @@ export function getInvestmentGuidance(entries, income, currency, name = '') {
   }
   const emergencySpent = getEmergencySpend(entries)
   if (emergencySpent > 0) {
-    return {
-      tone: 'caution',
-      message: `${you}${cap(`this period included ${formatMoney(emergencySpent, currency)} of emergency spending, drawn from Savings. Prioritize topping Savings back up before other goals.`)}`
+    // Emergency spending exists precisely so a one-off necessity doesn't read as
+    // "overspending" — only escalate to an alert when there's genuinely no cushion
+    // left (real Savings account balances, not just this period's derived rate).
+    const savingsBalance = getAccountBalances(allEntries, accounts.filter((a) => a.isSavings)).reduce(
+      (sum, a) => sum + a.balance,
+      0
+    )
+    if (savingsBalance <= 0) {
+      return {
+        tone: 'warning',
+        message: `${you}${cap(`this period included ${formatMoney(emergencySpent, currency)} of emergency spending and your savings are empty. That's a real risk — prioritize rebuilding Savings before anything else.`)}`
+      }
     }
   }
   if (savingsRate < targets.savings.pct) {

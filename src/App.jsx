@@ -146,6 +146,7 @@ export default function App() {
             name={state.name}
             currency={state.currency}
             entries={state.entries}
+            accounts={state.accounts}
             onGoToTransactions={() => setTab('transactions')}
           />
         )}
