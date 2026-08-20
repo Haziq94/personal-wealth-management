@@ -5,9 +5,6 @@ import {
   ArrowDownCircle,
   ArrowLeftRight,
   Tag,
-  House,
-  ShoppingBag,
-  Landmark,
   Repeat,
   Wallet,
   ArrowRightLeft,
@@ -17,9 +14,6 @@ import {
 } from 'lucide-react'
 import { formatMoney, currencySymbol, CURRENCIES, nowLocalISO } from '../lib/finance'
 import { makeId } from '../lib/storage'
-
-const BUDGET_GROUP_LABELS = { needs: 'Needs', wants: 'Wants', savings: 'Savings' }
-const BUDGET_GROUP_ICONS = { needs: House, wants: ShoppingBag, savings: Landmark }
 
 const TYPES = [
   { key: 'income', label: 'Income', icon: ArrowUpCircle, activeClass: 'border-emerald text-emerald bg-emerald/5' },
@@ -36,7 +30,6 @@ export default function AddTransactionModal({ currency, categories, accounts, on
   const [category, setCategory] = useState('')
   const [addingCategory, setAddingCategory] = useState(false)
   const [newCategory, setNewCategory] = useState('')
-  const [budgetGroup, setBudgetGroup] = useState('needs')
   const [recurring, setRecurring] = useState(false)
   const [txnCurrency, setTxnCurrency] = useState(currency)
   const [rate, setRate] = useState('')
@@ -90,7 +83,6 @@ export default function AddTransactionModal({ currency, categories, accounts, on
       name: name.trim(),
       amount: isForeign ? Math.round(homeAmount * 100) / 100 : parsedAmount,
       type,
-      budgetGroup: type === 'expense' ? budgetGroup : null,
       category: category || null,
       recurring: type !== 'transfer' && recurring,
       date,
@@ -249,31 +241,6 @@ export default function AddTransactionModal({ currency, categories, accounts, on
                 </button>
               </div>
             )}
-          </div>
-        )}
-
-        {type === 'expense' && (
-          <div>
-            <label className="block text-xs text-muted mb-1">Budget group</label>
-            <div className="flex gap-2">
-              {Object.entries(BUDGET_GROUP_LABELS).map(([key, label]) => {
-                const Icon = BUDGET_GROUP_ICONS[key]
-                return (
-                  <button
-                    type="button"
-                    key={key}
-                    onClick={() => setBudgetGroup(key)}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 min-h-[44px] text-sm border ${
-                      budgetGroup === key ? 'border-emerald text-emerald bg-emerald/5' : 'hairline text-muted'
-                    }`}
-                  >
-                    <Icon size={15} />
-                    {label}
-                  </button>
-                )
-              })}
-            </div>
-            <p className="text-xs text-muted mt-1">Feeds the Dashboard's Budget Allocation — separate from Category above.</p>
           </div>
         )}
 

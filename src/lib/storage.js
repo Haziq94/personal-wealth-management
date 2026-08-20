@@ -63,15 +63,15 @@ function normalizeDateTime(raw) {
 function normalizeEntries(rawEntries, legacyIncome) {
   const entries = (Array.isArray(rawEntries) ? rawEntries : []).map((e) => {
     const type = e.type === 'income' ? 'income' : e.type === 'transfer' ? 'transfer' : 'expense'
-    // Before budget groups (needs/wants/savings) and specific categories (Food & Drink, etc.)
-    // were split apart, `category` held the budget group directly.
-    const legacyBudgetGroup = typeof e.budgetGroup !== 'string' && BUDGET_GROUPS.includes(e.category)
+    // Budget group (needs/wants/savings) used to be a manual per-transaction field —
+    // it's now fully derived from commitments/spend (see getAllocation), so any old
+    // `budgetGroup`/needs-wants-savings `category` value is simply dropped, not migrated.
+    const legacyBudgetGroup = BUDGET_GROUPS.includes(e.category)
     return {
       id: e.id,
       name: e.name,
       amount: e.amount,
       type,
-      budgetGroup: type === 'expense' ? (typeof e.budgetGroup === 'string' ? e.budgetGroup : legacyBudgetGroup ? e.category : 'needs') : null,
       category: legacyBudgetGroup ? null : typeof e.category === 'string' ? e.category : null,
       recurring: !!e.recurring,
       date: normalizeDateTime(e.date),
@@ -91,7 +91,6 @@ function normalizeEntries(rawEntries, legacyIncome) {
       name: 'Income (migrated)',
       amount: legacyIncome,
       type: 'income',
-      budgetGroup: null,
       category: null,
       recurring: true,
       date: nowLocalISO(),

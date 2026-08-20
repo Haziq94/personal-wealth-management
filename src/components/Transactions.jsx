@@ -3,9 +3,6 @@ import {
   ArrowUpCircle,
   ArrowDownCircle,
   ArrowLeftRight,
-  House,
-  ShoppingBag,
-  Landmark,
   Repeat,
   Receipt,
   Trash2,
@@ -21,9 +18,6 @@ import {
 import { formatMoney, currencySymbol, formatDateTime, getAccountBalances } from '../lib/finance'
 import { makeId } from '../lib/storage'
 import AddTransactionModal from './AddTransactionModal'
-
-const BUDGET_GROUP_LABELS = { needs: 'Needs', wants: 'Wants', savings: 'Savings' }
-const BUDGET_GROUP_ICONS = { needs: House, wants: ShoppingBag, savings: Landmark }
 
 const CATEGORY_ICON_MATCH = {
   'food & drink': Utensils,
@@ -136,11 +130,9 @@ export default function Transactions({ currency, entries, accounts, categories, 
                         {accountName(accounts, entry.fromAccountId)} → {accountName(accounts, entry.toAccountId)}
                       </span>
                     ) : (
-                      <>
-                        {entry.type === 'expense' && entry.budgetGroup && <span>{BUDGET_GROUP_LABELS[entry.budgetGroup]}</span>}
-                        {entry.category && <span>· {entry.category}</span>}
-                        {entry.accountId && <span>· {accountName(accounts, entry.accountId)}</span>}
-                      </>
+                      [entry.category, entry.accountId ? accountName(accounts, entry.accountId) : null]
+                        .filter(Boolean)
+                        .map((part, i) => <span key={i}>{i > 0 && '· '}{part}</span>)
                     )}
                     {entry.date && <span className="num">· {formatDateTime(entry.date)}</span>}
                     {entry.recurring && (

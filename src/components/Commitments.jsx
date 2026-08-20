@@ -1,8 +1,5 @@
-import { Repeat, House, ShoppingBag, Landmark, CalendarClock } from 'lucide-react'
+import { Repeat, House, CalendarClock } from 'lucide-react'
 import { getCommitments, formatMoney } from '../lib/finance'
-
-const CATEGORY_LABELS = { needs: 'Needs', wants: 'Wants', savings: 'Savings' }
-const CATEGORY_ICONS = { needs: House, wants: ShoppingBag, savings: Landmark }
 
 export default function Commitments({ currency, entries }) {
   const { entries: recurring, total } = getCommitments(entries)
@@ -15,7 +12,9 @@ export default function Commitments({ currency, entries }) {
           Monthly recurring total
         </div>
         <div className="num text-2xl">{formatMoney(total, currency)}</div>
-        <p className="text-xs text-muted mt-1">Derived automatically from expenses flagged recurring.</p>
+        <p className="text-xs text-muted mt-1">
+          Derived automatically from expenses flagged recurring — this is what the Dashboard treats as Needs.
+        </p>
       </div>
 
       <div className="bg-surface border hairline">
@@ -25,24 +24,18 @@ export default function Commitments({ currency, entries }) {
             No recurring commitments yet. Flag an expense as recurring in Transactions.
           </div>
         )}
-        {recurring.map((entry) => {
-          const Icon = CATEGORY_ICONS[entry.budgetGroup]
-          return (
-            <div key={entry.id} className="flex items-center justify-between px-4 py-3 border-b hairline last:border-b-0">
-              <div className="flex items-center gap-3">
-                <Icon size={18} className="text-muted shrink-0" strokeWidth={1.75} />
-                <div>
-                  <div className="text-sm">{entry.name}</div>
-                  <div className="text-xs text-muted">
-                    {CATEGORY_LABELS[entry.budgetGroup]}
-                    {entry.category && ` · ${entry.category}`}
-                  </div>
-                </div>
+        {recurring.map((entry) => (
+          <div key={entry.id} className="flex items-center justify-between px-4 py-3 border-b hairline last:border-b-0">
+            <div className="flex items-center gap-3">
+              <House size={18} className="text-muted shrink-0" strokeWidth={1.75} />
+              <div>
+                <div className="text-sm">{entry.name}</div>
+                {entry.category && <div className="text-xs text-muted">{entry.category}</div>}
               </div>
-              <span className="num text-sm">{formatMoney(entry.amount, currency)}</span>
             </div>
-          )
-        })}
+            <span className="num text-sm">{formatMoney(entry.amount, currency)}</span>
+          </div>
+        ))}
       </div>
     </div>
   )

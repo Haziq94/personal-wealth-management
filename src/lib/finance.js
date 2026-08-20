@@ -52,12 +52,6 @@ export function transfersOf(entries) {
   return entries.filter((e) => e.type === 'transfer')
 }
 
-export function sumByBudgetGroup(entries, group) {
-  return expensesOf(entries)
-    .filter((e) => e.budgetGroup === group)
-    .reduce((total, e) => total + e.amount, 0)
-}
-
 export function totalIncome(entries) {
   return incomeOf(entries).reduce((total, e) => total + e.amount, 0)
 }
@@ -81,10 +75,20 @@ export function getAllocationTargets(entries, income) {
   }
 }
 
+// Budget groups are purely a visualization of how income *should* split — there's
+// no per-transaction tagging. Actual spend per group is derived instead: Needs is
+// exactly your commitments (that's the definition), Wants is whatever else you
+// spent, and Savings is whatever of your income is left untouched.
 export function getAllocation(entries, income) {
   const targets = getAllocationTargets(entries, income)
+  const needsSpent = getCommitments(entries).total
+  const spentTotal = totalSpent(entries)
+  const wantsSpent = Math.max(spentTotal - needsSpent, 0)
+  const savingsSpent = Math.max(income - spentTotal, 0)
+  const spentByGroup = { needs: needsSpent, wants: wantsSpent, savings: savingsSpent }
+
   return BUDGET_GROUPS.reduce((acc, cat) => {
-    const spent = sumByBudgetGroup(entries, cat)
+    const spent = spentByGroup[cat]
     acc[cat] = {
       spent,
       pct: income > 0 ? spent / income : 0,
@@ -121,7 +125,7 @@ export function getInvestmentGuidance(entries, goals, income, name = '') {
   const spent = totalSpent(entries)
   const remaining = income - spent
   const targets = getAllocationTargets(entries, income)
-  const savingsRate = income > 0 ? sumByBudgetGroup(entries, 'savings') / income : 0
+  const savingsRate = income > 0 ? Math.max(income - spent, 0) / income : 0
   const emergencyGoal = goals.find((g) => g.name.toLowerCase().includes('emergency'))
   const you = name ? `${name}, ` : ''
   const cap = (s) => (you ? s : s.charAt(0).toUpperCase() + s.slice(1))
