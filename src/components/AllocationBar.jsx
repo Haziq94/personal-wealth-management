@@ -1,14 +1,20 @@
-import { House, ShoppingBag, Landmark, Scale } from 'lucide-react'
+import { House, ShoppingBag, Landmark, Scale, ShieldAlert } from 'lucide-react'
 import { formatPct } from '../lib/finance'
 
-const LABELS = { needs: 'Commitment', wants: 'Daily Budget', savings: 'Savings' }
+const LABELS = { needs: 'Commitment', wants: 'Daily Budget', emergency: 'Emergency', savings: 'Savings' }
 const CAPTIONS = {
   needs: 'target = your commitments',
   wants: 'target = capped near your commitments — extra surplus goes to Savings',
+  emergency: 'target = 0% — only appears when something unexpected forces a draw from Savings',
   savings: 'target = everything left after Commitment and Daily Budget — grows fastest on a bonus'
 }
-const COLORS = { needs: 'var(--color-cat-needs)', wants: 'var(--color-cat-wants)', savings: 'var(--color-cat-savings)' }
-const ICONS = { needs: House, wants: ShoppingBag, savings: Landmark }
+const COLORS = {
+  needs: 'var(--color-cat-needs)',
+  wants: 'var(--color-cat-wants)',
+  emergency: 'var(--color-cat-emergency)',
+  savings: 'var(--color-cat-savings)'
+}
+const ICONS = { needs: House, wants: ShoppingBag, emergency: ShieldAlert, savings: Landmark }
 
 function Row({ cat, data }) {
   const laneMax = data.target > 0 ? data.target * 1.5 : Math.max(data.pct, 0.1)
@@ -51,7 +57,10 @@ export default function AllocationBar({ allocation }) {
         <Scale size={17} className="text-emerald" strokeWidth={1.75} />
         Budget Allocation
       </h3>
-      <p className="text-xs text-muted mb-2">Commitment is set to your recurring commitments. Daily Budget is capped near that same amount — any extra, like a bonus, flows straight to Savings.</p>
+      <p className="text-xs text-muted mb-2">
+        Commitment is set to your recurring commitments. Daily Budget is capped near that same amount — any extra,
+        like a bonus, flows straight to Savings. Tag a transaction "Emergency" and it draws from Savings instead.
+      </p>
       {Object.entries(allocation).map(([cat, data]) => (
         <Row key={cat} cat={cat} data={data} />
       ))}

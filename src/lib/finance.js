@@ -36,9 +36,24 @@ export function formatDateTime(iso) {
   return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }
 
-export const BUDGET_GROUPS = ['needs', 'wants', 'savings']
+export const BUDGET_GROUPS = ['needs', 'wants', 'emergency', 'savings']
 
-export const DEFAULT_CATEGORIES = ['Food & Drink', 'Transport', 'Bills & Utility', 'Entertainment']
+export const DEFAULT_CATEGORIES = ['Food & Drink', 'Transport', 'Bills & Utility', 'Entertainment', 'Emergency']
+
+// Tagging an expense with the "Emergency" category (case-insensitive — it's just
+// a normal transaction category, nothing special about how it's entered) pulls it
+// out of Daily Budget and into its own always-0%-target group, so unexpected
+// necessities (car breakdown, a burst pipe) are visibly a draw against Savings
+// rather than blowing out the everyday spending number.
+export function isEmergencyEntry(entry) {
+  return typeof entry.category === 'string' && entry.category.toLowerCase() === 'emergency'
+}
+
+export function getEmergencySpend(entries) {
+  return expensesOf(entries)
+    .filter((e) => !e.recurring && isEmergencyEntry(e))
+    .reduce((total, e) => total + e.amount, 0)
+}
 
 export function expensesOf(entries) {
   return entries.filter((e) => e.type === 'expense')
@@ -71,6 +86,9 @@ export function getAllocationTargets(entries, income) {
   return {
     needs: { amount: needsAmount, pct: pct(needsAmount) },
     wants: { amount: wantsAmount, pct: pct(wantsAmount) },
+    // No planned allocation — an emergency fund is meant to sit untouched until
+    // something breaks, at which point it draws from Savings rather than a target.
+    emergency: { amount: 0, pct: 0 },
     savings: { amount: savingsAmount, pct: pct(savingsAmount) }
   }
 }
@@ -82,10 +100,11 @@ export function getAllocationTargets(entries, income) {
 export function getAllocation(entries, income) {
   const targets = getAllocationTargets(entries, income)
   const needsSpent = getCommitments(entries).total
+  const emergencySpent = getEmergencySpend(entries)
   const spentTotal = totalSpent(entries)
-  const wantsSpent = Math.max(spentTotal - needsSpent, 0)
+  const wantsSpent = Math.max(spentTotal - needsSpent - emergencySpent, 0)
   const savingsSpent = Math.max(income - spentTotal, 0)
-  const spentByGroup = { needs: needsSpent, wants: wantsSpent, savings: savingsSpent }
+  const spentByGroup = { needs: needsSpent, wants: wantsSpent, emergency: emergencySpent, savings: savingsSpent }
 
   return BUDGET_GROUPS.reduce((acc, cat) => {
     const spent = spentByGroup[cat]
@@ -127,7 +146,7 @@ export function getCommitments(entries) {
 export function getTopSpendingCategories(entries, limit = 3) {
   const totals = {}
   for (const e of expensesOf(entries)) {
-    if (e.recurring) continue
+    if (e.recurring || isEmergencyEntry(e)) continue
     const cat = e.category || 'Uncategorized'
     totals[cat] = (totals[cat] || 0) + e.amount
   }
@@ -167,6 +186,13 @@ export function getInvestmentGuidance(entries, income, currency, name = '') {
     return {
       tone: 'warning',
       message: `${you}${cap("you've spent more than you earned this period.")}${suggestCategories(2)}`
+    }
+  }
+  const emergencySpent = getEmergencySpend(entries)
+  if (emergencySpent > 0) {
+    return {
+      tone: 'caution',
+      message: `${you}${cap(`this period included ${formatMoney(emergencySpent, currency)} of emergency spending, drawn from Savings. Prioritize topping Savings back up before other goals.`)}`
     }
   }
   if (savingsRate < targets.savings.pct) {

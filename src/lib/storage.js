@@ -1,6 +1,10 @@
-import { CURRENCIES, DEFAULT_CURRENCY, DEFAULT_CATEGORIES, BUDGET_GROUPS, nowLocalISO } from './finance'
+import { CURRENCIES, DEFAULT_CURRENCY, DEFAULT_CATEGORIES, nowLocalISO } from './finance'
 
 const STORAGE_KEY = 'wealth-ledger:v1'
+// The old budget-group values `category` could hold before it split into
+// budgetGroup (derived) + category (free-text tag) — fixed, not the live BUDGET_GROUPS
+// list, so adding "emergency" there later can't accidentally affect this legacy check.
+const LEGACY_BUDGET_GROUP_VALUES = ['needs', 'wants', 'savings']
 
 const DEFAULT_SECURITY = {
   enabled: false,
@@ -38,7 +42,11 @@ function normalizeCurrency(currency) {
 function normalizeCategories(categories) {
   if (!Array.isArray(categories)) return [...DEFAULT_CATEGORIES]
   const cleaned = categories.filter((c) => typeof c === 'string' && c.trim())
-  return cleaned.length > 0 ? [...new Set(cleaned)] : [...DEFAULT_CATEGORIES]
+  const base = cleaned.length > 0 ? [...new Set(cleaned)] : [...DEFAULT_CATEGORIES]
+  // Emergency is special-cased in the allocation logic (see finance.js), so every
+  // install gets it even if their category list predates the feature.
+  if (!base.some((c) => c.toLowerCase() === 'emergency')) base.push('Emergency')
+  return base
 }
 
 function normalizeAccounts(accounts) {
@@ -73,7 +81,7 @@ function normalizeEntries(rawEntries, legacyIncome) {
     // Budget group (needs/wants/savings) used to be a manual per-transaction field —
     // it's now fully derived from commitments/spend (see getAllocation), so any old
     // `budgetGroup`/needs-wants-savings `category` value is simply dropped, not migrated.
-    const legacyBudgetGroup = BUDGET_GROUPS.includes(e.category)
+    const legacyBudgetGroup = LEGACY_BUDGET_GROUP_VALUES.includes(e.category)
     return {
       id: e.id,
       name: e.name,

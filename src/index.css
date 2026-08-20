@@ -14,6 +14,7 @@
 
   --color-cat-needs: #1b2430;
   --color-cat-wants: #b5482c;
+  --color-cat-emergency: #b5482c;
   --color-cat-savings: #2f6f4e;
 
   color-scheme: light;
@@ -30,6 +31,7 @@
 
     --color-cat-needs: #ebe9e3;
     --color-cat-wants: #e0846c;
+    --color-cat-emergency: #e0846c;
     --color-cat-savings: #5ab089;
 
     color-scheme: dark;
