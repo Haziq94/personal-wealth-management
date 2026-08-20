@@ -161,6 +161,7 @@ export default function App() {
             onAdd={handleAddEntry}
             onRemove={handleRemoveEntry}
             onAddCategory={handleAddCategory}
+            onAddAccount={handleAddAccount}
           />
         )}
         {tab === 'commitments' && <Commitments currency={state.currency} entries={state.entries} />}
