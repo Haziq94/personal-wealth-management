@@ -25,7 +25,7 @@ export default function Dashboard({ name, currency, entries, onGoToTransactions 
   const spent = totalSpent(periodEntries)
   const remaining = income - spent
   const allocation = getAllocation(periodEntries, income)
-  const guidance = getInvestmentGuidance(periodEntries, income, name)
+  const guidance = getInvestmentGuidance(periodEntries, income, currency, name)
   const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
   const ToneIcon = TONE_STYLES[guidance.tone].icon
 

@@ -121,13 +121,35 @@ export function getCommitments(entries) {
   }
 }
 
-export function getInvestmentGuidance(entries, income, name = '') {
+// Non-recurring expenses only — commitments (rent, insurance, loan repayments) aren't
+// something you can quickly cut, so "what should I spend less on" suggestions should
+// only ever point at discretionary (Daily Budget) categories.
+export function getTopSpendingCategories(entries, limit = 3) {
+  const totals = {}
+  for (const e of expensesOf(entries)) {
+    if (e.recurring) continue
+    const cat = e.category || 'Uncategorized'
+    totals[cat] = (totals[cat] || 0) + e.amount
+  }
+  return Object.entries(totals)
+    .map(([category, amount]) => ({ category, amount }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, limit)
+}
+
+export function getInvestmentGuidance(entries, income, currency, name = '') {
   const spent = totalSpent(entries)
   const remaining = income - spent
   const targets = getAllocationTargets(entries, income)
   const savingsRate = income > 0 ? Math.max(income - spent, 0) / income : 0
   const you = name ? `${name}, ` : ''
   const cap = (s) => (you ? s : s.charAt(0).toUpperCase() + s.slice(1))
+  const suggestCategories = (limit) => {
+    const top = getTopSpendingCategories(entries, limit)
+    if (top.length === 0) return ''
+    const list = top.map((t) => `${t.category} (${formatMoney(t.amount, currency)})`).join(', ')
+    return ` Biggest discretionary spend this period: ${list} — trim there first.`
+  }
 
   if (income <= 0) {
     return {
@@ -144,13 +166,13 @@ export function getInvestmentGuidance(entries, income, name = '') {
   if (remaining < 0) {
     return {
       tone: 'warning',
-      message: `${you}${cap("you've spent more than you earned this month. Trim Daily Budget spending first before anything else.")}`
+      message: `${you}${cap("you've spent more than you earned this period.")}${suggestCategories(2)}`
     }
   }
   if (savingsRate < targets.savings.pct) {
     return {
       tone: 'caution',
-      message: `${you}${cap(`savings are at ${(savingsRate * 100).toFixed(0)}% of income. Aim to raise Savings toward ${(targets.savings.pct * 100).toFixed(0)}% before investing more.`)}`
+      message: `${you}${cap(`savings are at ${(savingsRate * 100).toFixed(0)}% of income. Aim to raise Savings toward ${(targets.savings.pct * 100).toFixed(0)}%.`)}${suggestCategories(2)}`
     }
   }
   return {
