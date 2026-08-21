@@ -1,5 +1,10 @@
 {
   "appId": "com.haziq.wealth",
   "appName": "Haziq's Wealth",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "CapacitorUpdater": {
+      "autoUpdate": false
+    }
+  }
 }
