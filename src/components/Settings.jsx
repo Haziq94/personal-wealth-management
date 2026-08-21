@@ -17,6 +17,7 @@ import {
 import { CURRENCIES, formatMoney, getAccountBalances } from '../lib/finance'
 import { isBiometricAvailable, registerBiometric } from '../lib/security'
 import { makeId } from '../lib/storage'
+import { getOtaStatus } from '../lib/otaUpdate'
 import LockScreen from './LockScreen'
 
 const NEW_TYPE = '__new__'
@@ -52,6 +53,7 @@ export default function Settings({
   const fileInputRef = useRef(null)
   const security = state.security ?? {}
   const accountBalances = getAccountBalances(state.entries, state.accounts)
+  const otaStatus = getOtaStatus()
 
   useEffect(() => {
     isBiometricAvailable().then(setBiometricAvailable)
@@ -411,7 +413,12 @@ export default function Settings({
         {importError && <p className="text-xs text-rust">{importError}</p>}
       </div>
 
-      <p className="text-center text-[11px] text-muted num pb-2">Build {import.meta.env.VITE_APP_VERSION || 'dev'}</p>
+      <p className="text-center text-[11px] text-muted num pb-1">Build {import.meta.env.VITE_APP_VERSION || 'dev'}</p>
+      {otaStatus && (
+        <p className="text-center text-[11px] text-muted pb-2">
+          Last update check ({otaStatus.step}): {otaStatus.message}
+        </p>
+      )}
     </div>
   )
 }
