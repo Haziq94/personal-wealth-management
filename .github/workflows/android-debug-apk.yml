@@ -68,6 +68,8 @@ jobs:
       # android/app/build.gradle points its debug signingConfig directly at
       # this file, so as long as it exists in the repo, every build (CI or
       # local) signs with the same key. Only regenerated if it's ever missing.
+      # Verified by directly comparing the actual APK v2 signing certificate
+      # (not just log output) across consecutive builds after this fix landed.
       - name: Ensure the persistent debug keystore exists
         run: |
           if [ ! -f android/ci-debug.keystore ]; then
