@@ -410,6 +410,8 @@ export default function Settings({
         </div>
         {importError && <p className="text-xs text-rust">{importError}</p>}
       </div>
+
+      <p className="text-center text-[11px] text-muted num pb-2">Build {import.meta.env.VITE_APP_VERSION || 'dev'}</p>
     </div>
   )
 }
