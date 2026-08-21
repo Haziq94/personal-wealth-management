@@ -416,7 +416,9 @@ export default function Settings({
       <p className="text-center text-[11px] text-muted num pb-1">Build {import.meta.env.VITE_APP_VERSION || 'dev'}</p>
       {otaStatus && (
         <p className="text-center text-[11px] text-muted pb-2">
-          Last update check ({otaStatus.step}): {otaStatus.message}
+          Last update check ({otaStatus.step}) at{' '}
+          {new Date(otaStatus.checkedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}:{' '}
+          {otaStatus.message}
         </p>
       )}
     </div>
