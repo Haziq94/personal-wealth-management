@@ -60,7 +60,8 @@ function normalizeAccounts(accounts) {
       name: a.name,
       openingBalance: typeof a.openingBalance === 'number' ? a.openingBalance : 0,
       type: typeof a.type === 'string' && a.type.trim() ? a.type : null,
-      isSavings: !!a.isSavings
+      isSavings: !!a.isSavings,
+      isCredit: !!a.isCredit
     }))
 }
 

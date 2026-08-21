@@ -14,7 +14,7 @@ import {
   Plus,
   X
 } from 'lucide-react'
-import { CURRENCIES, formatMoney, getAccountBalances } from '../lib/finance'
+import { CURRENCIES, formatMoney, getAccountBalances, accountBalanceView } from '../lib/finance'
 import { isBiometricAvailable, registerBiometric } from '../lib/security'
 import { makeId } from '../lib/storage'
 import { getOtaStatus } from '../lib/otaUpdate'
@@ -48,7 +48,7 @@ export default function Settings({
   const [newAccountType, setNewAccountType] = useState('')
   const [addingAccountType, setAddingAccountType] = useState(false)
   const [newTypeInput, setNewTypeInput] = useState('')
-  const [newAccountIsSavings, setNewAccountIsSavings] = useState(false)
+  const [newAccountKind, setNewAccountKind] = useState('cash')
   const [newCategoryName, setNewCategoryName] = useState('')
   const fileInputRef = useRef(null)
   const security = state.security ?? {}
@@ -74,17 +74,21 @@ export default function Settings({
     e.preventDefault()
     const trimmed = newAccountName.trim()
     if (!trimmed) return
+    const entered = parseFloat(newAccountBalance) || 0
     onAddAccount({
       id: makeId(),
       name: trimmed,
-      openingBalance: parseFloat(newAccountBalance) || 0,
+      // For a credit card the field asks what's currently owed, which is a
+      // negative running balance internally.
+      openingBalance: newAccountKind === 'credit' ? -Math.abs(entered) : entered,
       type: newAccountType || null,
-      isSavings: newAccountIsSavings
+      isSavings: newAccountKind === 'savings',
+      isCredit: newAccountKind === 'credit'
     })
     setNewAccountName('')
     setNewAccountBalance('')
     setNewAccountType('')
-    setNewAccountIsSavings(false)
+    setNewAccountKind('cash')
   }
 
   function handleAccountTypeSelect(value) {
@@ -197,27 +201,36 @@ export default function Settings({
           Accounts
         </h3>
         <p className="text-xs text-muted">
-          Track balances across your bank accounts, cash and e-wallets. Mark one as a savings/investment account to
-          have it show up on the Savings &amp; Investing page too.
+          Track balances across your bank accounts, cash and e-wallets. Savings/investment accounts also show up on
+          the Savings &amp; Investing page. Credit cards work the other way round — spending on one adds to what you
+          owe instead of drawing down a balance.
         </p>
         {accountBalances.length > 0 && (
           <div className="border hairline divide-y hairline">
-            {accountBalances.map((a) => (
+            {accountBalances.map((a) => {
+              const view = accountBalanceView(a)
+              return (
               <div key={a.id} className="flex items-center justify-between px-3 py-2">
                 <div className="min-w-0">
                   <span className="text-sm">{a.name}</span>
-                  {(a.type || a.isSavings) && (
-                    <div className="text-xs text-muted">{[a.type, a.isSavings && 'Savings'].filter(Boolean).join(' · ')}</div>
+                  {(a.type || a.isSavings || a.isCredit) && (
+                    <div className="text-xs text-muted">
+                      {[a.type, a.isSavings && 'Savings', a.isCredit && 'Credit card'].filter(Boolean).join(' · ')}
+                    </div>
                   )}
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className={`num text-sm ${a.balance < 0 ? 'text-rust' : 'text-ink'}`}>{formatMoney(a.balance, state.currency)}</span>
+                  <span className={`num text-sm ${view.tone}`}>
+                    {formatMoney(view.amount, state.currency)}
+                    {view.label && <span className="text-muted"> {view.label}</span>}
+                  </span>
                   <button onClick={() => onRemoveAccount(a.id)} className="text-muted p-1 -m-1 hover:text-rust" aria-label={`Remove ${a.name}`}>
                     <X size={14} />
                   </button>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
         <form onSubmit={handleAddAccount} className="space-y-2">
@@ -232,7 +245,9 @@ export default function Settings({
               />
             </div>
             <div className="w-24">
-              <label className="block text-xs text-muted mb-1">Balance</label>
+              <label className="block text-xs text-muted mb-1">
+                {newAccountKind === 'credit' ? 'Owed now' : 'Balance'}
+              </label>
               <input
                 type="number"
                 inputMode="decimal"
@@ -243,6 +258,15 @@ export default function Settings({
               />
             </div>
           </div>
+          <select
+            value={newAccountKind}
+            onChange={(e) => setNewAccountKind(e.target.value)}
+            className="w-full appearance-none border-b hairline bg-transparent py-2 text-sm focus:outline-none focus:border-emerald"
+          >
+            <option value="cash">Cash / bank account — money you hold</option>
+            <option value="savings">Savings / investment account — money you hold</option>
+            <option value="credit">Credit card — money you owe</option>
+          </select>
           {!addingAccountType ? (
             <select
               value={newAccountType}
@@ -277,15 +301,6 @@ export default function Settings({
               </button>
             </div>
           )}
-          <label className="flex items-center gap-2 text-sm py-1 min-h-[32px]">
-            <input
-              type="checkbox"
-              className="w-4 h-4"
-              checked={newAccountIsSavings}
-              onChange={(e) => setNewAccountIsSavings(e.target.checked)}
-            />
-            Savings / investment account
-          </label>
           <button
             type="submit"
             className="w-full flex items-center justify-center gap-1.5 border hairline py-2.5 min-h-[44px] text-sm text-emerald hover:border-emerald"

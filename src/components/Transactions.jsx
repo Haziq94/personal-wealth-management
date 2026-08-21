@@ -12,7 +12,7 @@ import {
   Camera,
   ShieldCheck
 } from 'lucide-react'
-import { formatMoney, currencySymbol, formatDateTime, getAccountBalances } from '../lib/finance'
+import { formatMoney, currencySymbol, formatDateTime, getAccountBalances, accountBalanceView } from '../lib/finance'
 import { categoryIcon } from '../lib/categoryIcons'
 import { makeId } from '../lib/storage'
 import AddTransactionModal from './AddTransactionModal'
@@ -27,6 +27,7 @@ export default function Transactions({ currency, entries, accounts, categories, 
   const [addingAccount, setAddingAccount] = useState(false)
   const [newAccountName, setNewAccountName] = useState('')
   const [newAccountBalance, setNewAccountBalance] = useState('')
+  const [newAccountIsCredit, setNewAccountIsCredit] = useState(false)
   const [viewingReceipt, setViewingReceipt] = useState(null)
   const balances = getAccountBalances(entries, accounts)
   const sorted = [...entries].reverse().sort((a, b) => (b.date || '').localeCompare(a.date || ''))
@@ -35,9 +36,16 @@ export default function Transactions({ currency, entries, accounts, categories, 
     e.preventDefault()
     const trimmed = newAccountName.trim()
     if (!trimmed) return
-    onAddAccount({ id: makeId(), name: trimmed, openingBalance: parseFloat(newAccountBalance) || 0 })
+    const entered = parseFloat(newAccountBalance) || 0
+    onAddAccount({
+      id: makeId(),
+      name: trimmed,
+      openingBalance: newAccountIsCredit ? -Math.abs(entered) : entered,
+      isCredit: newAccountIsCredit
+    })
     setNewAccountName('')
     setNewAccountBalance('')
+    setNewAccountIsCredit(false)
     setAddingAccount(false)
   }
 
@@ -49,12 +57,16 @@ export default function Transactions({ currency, entries, accounts, categories, 
           Account balances
         </div>
         <div className="flex overflow-x-auto gap-px bg-ink/10 mt-2">
-          {balances.map((a) => (
-            <div key={a.id} className="bg-surface p-3 min-w-[130px] shrink-0">
-              <div className="text-xs text-muted truncate">{a.name}</div>
-              <div className={`num text-sm ${a.balance < 0 ? 'text-rust' : 'text-ink'}`}>{formatMoney(a.balance, currency)}</div>
-            </div>
-          ))}
+          {balances.map((a) => {
+            const view = accountBalanceView(a)
+            return (
+              <div key={a.id} className="bg-surface p-3 min-w-[130px] shrink-0">
+                <div className="text-xs text-muted truncate">{a.name}</div>
+                <div className={`num text-sm ${view.tone}`}>{formatMoney(view.amount, currency)}</div>
+                {view.label && <div className="text-[10px] text-muted">{view.label}</div>}
+              </div>
+            )
+          })}
           <button
             onClick={() => setAddingAccount(true)}
             className="bg-surface p-3 min-w-[64px] shrink-0 flex flex-col items-center justify-center text-muted hover:text-emerald"
@@ -64,31 +76,42 @@ export default function Transactions({ currency, entries, accounts, categories, 
           </button>
         </div>
         {addingAccount && (
-          <form onSubmit={handleAddAccount} className="flex items-end gap-2 p-3 border-t hairline">
-            <div className="flex-1">
-              <label className="block text-xs text-muted mb-1">Account name</label>
-              <input
-                autoFocus
-                className="w-full border-b hairline bg-transparent py-2 text-sm focus:outline-none focus:border-emerald"
-                value={newAccountName}
-                onChange={(e) => setNewAccountName(e.target.value)}
-                placeholder="e.g. Maybank"
-              />
+          <form onSubmit={handleAddAccount} className="p-3 border-t hairline space-y-2">
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <label className="block text-xs text-muted mb-1">Account name</label>
+                <input
+                  autoFocus
+                  className="w-full border-b hairline bg-transparent py-2 text-sm focus:outline-none focus:border-emerald"
+                  value={newAccountName}
+                  onChange={(e) => setNewAccountName(e.target.value)}
+                  placeholder="e.g. Maybank"
+                />
+              </div>
+              <div className="w-24">
+                <label className="block text-xs text-muted mb-1">{newAccountIsCredit ? 'Owed now' : 'Balance'}</label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  className="num w-full border-b hairline bg-transparent py-2 text-sm focus:outline-none focus:border-emerald"
+                  value={newAccountBalance}
+                  onChange={(e) => setNewAccountBalance(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+              <button type="submit" className="p-2.5 border hairline text-emerald" aria-label="Save account">
+                <Plus size={16} />
+              </button>
             </div>
-            <div className="w-24">
-              <label className="block text-xs text-muted mb-1">Balance</label>
+            <label className="flex items-center gap-2 text-sm py-1 min-h-[32px]">
               <input
-                type="number"
-                inputMode="decimal"
-                className="num w-full border-b hairline bg-transparent py-2 text-sm focus:outline-none focus:border-emerald"
-                value={newAccountBalance}
-                onChange={(e) => setNewAccountBalance(e.target.value)}
-                placeholder="0.00"
+                type="checkbox"
+                className="w-4 h-4"
+                checked={newAccountIsCredit}
+                onChange={(e) => setNewAccountIsCredit(e.target.checked)}
               />
-            </div>
-            <button type="submit" className="p-2.5 border hairline text-emerald" aria-label="Save account">
-              <Plus size={16} />
-            </button>
+              Credit card — money you owe
+            </label>
           </form>
         )}
       </div>
