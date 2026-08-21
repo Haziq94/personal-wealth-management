@@ -4,7 +4,16 @@ import { CapacitorUpdater } from '@capgo/capacitor-updater'
 // Published by the android-debug-apk CI workflow from the same commit as the
 // debug APK it built — so a freshly installed APK always matches this
 // manifest already, and only later develop pushes trigger an actual update.
-const MANIFEST_URL = 'https://github.com/Haziq94/personal-wealth-management/releases/download/develop-latest/manifest.json'
+//
+// This has to be raw.githubusercontent.com specifically, not a GitHub Release
+// asset URL: release assets don't send Access-Control-Allow-Origin, so a
+// WebView fetch() to one is silently blocked by CORS (the try/catch below
+// swallows it, so the failure is invisible — no error, just no update ever
+// happening). raw.githubusercontent.com does send permissive CORS headers.
+// The actual dist.zip download further down stays on a Release asset — that
+// goes through the native plugin's own downloader, not a WebView fetch(), so
+// CORS doesn't apply to it.
+const MANIFEST_URL = 'https://raw.githubusercontent.com/Haziq94/personal-wealth-management/develop/ota/manifest.json'
 
 const CURRENT_VERSION = import.meta.env.VITE_APP_VERSION || 'dev'
 

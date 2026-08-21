@@ -46,16 +46,28 @@ jobs:
       # already-installed app pull down plain JS/CSS changes on next launch
       # without a new APK (see src/lib/otaUpdate.js) — only changes touching
       # native code (a new plugin, Android config) still need a fresh APK.
-      # This is a standing "develop-latest" prerelease, not a distributable
-      # release — its assets get overwritten on every push.
+      # dist.zip is a standing "develop-latest" prerelease asset — that's fine
+      # for it, since it's downloaded by the native plugin's own HTTP client,
+      # not a WebView fetch(). manifest.json can't live there too: release
+      # assets don't send Access-Control-Allow-Origin, so a WebView fetch()
+      # to one is silently blocked by CORS. It's committed into the repo
+      # instead and read via raw.githubusercontent.com, which does send
+      # permissive CORS headers.
       - name: Publish OTA bundle for the native app updater
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           (cd dist && zip -rq ../dist.zip . -x "*.map")
-          echo "{\"version\":\"$VITE_APP_VERSION\",\"url\":\"https://github.com/${{ github.repository }}/releases/download/develop-latest/dist.zip\"}" > manifest.json
           gh release view develop-latest >/dev/null 2>&1 || gh release create develop-latest --prerelease --title "OTA bundle (develop)" --notes "Auto-published by CI on every push to develop, for the app's built-in updater. Not a distributable release."
-          gh release upload develop-latest dist.zip manifest.json --clobber
+          gh release upload develop-latest dist.zip --clobber
+
+          mkdir -p ota
+          echo "{\"version\":\"$VITE_APP_VERSION\",\"url\":\"https://github.com/${{ github.repository }}/releases/download/develop-latest/dist.zip\"}" > ota/manifest.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ota/manifest.json
+          git diff --staged --quiet || git commit -m "Update OTA manifest to $VITE_APP_VERSION"
+          git push
 
       - uses: actions/setup-java@v4
         with:
