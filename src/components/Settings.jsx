@@ -11,6 +11,7 @@ import {
   Fingerprint,
   Wallet2,
   CreditCard,
+  BellRing,
   Tags,
   Plus,
   X
@@ -19,6 +20,13 @@ import { CURRENCIES, formatMoney, getAccountBalances, accountBalanceView } from 
 import { isBiometricAvailable, registerBiometric } from '../lib/security'
 import { makeId } from '../lib/storage'
 import { getOtaStatus } from '../lib/otaUpdate'
+import {
+  isCaptureSupported,
+  isCapturePermissionGranted,
+  isCaptureEnabled,
+  setCaptureEnabled,
+  openCaptureSettings
+} from '../lib/notificationCapture'
 import LockScreen from './LockScreen'
 
 const NEW_TYPE = '__new__'
@@ -53,6 +61,8 @@ export default function Settings({
   const [newAccountKind, setNewAccountKind] = useState('cash')
   const [newAccountLast4, setNewAccountLast4] = useState('')
   const [last4Drafts, setLast4Drafts] = useState({})
+  const [captureGranted, setCaptureGranted] = useState(false)
+  const [captureOn, setCaptureOn] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const fileInputRef = useRef(null)
   const security = state.security ?? {}
@@ -62,6 +72,25 @@ export default function Settings({
   useEffect(() => {
     isBiometricAvailable().then(setBiometricAvailable)
   }, [])
+
+  // Notification access is granted outside the app, so this re-reads on every
+  // return to the foreground rather than trusting what it saw at mount.
+  useEffect(() => {
+    if (!isCaptureSupported()) return
+    function refresh() {
+      isCapturePermissionGranted().then(setCaptureGranted)
+      isCaptureEnabled().then(setCaptureOn)
+    }
+    refresh()
+    document.addEventListener('visibilitychange', refresh)
+    return () => document.removeEventListener('visibilitychange', refresh)
+  }, [])
+
+  async function handleCaptureToggle(enable) {
+    await setCaptureEnabled(enable)
+    setCaptureOn(enable)
+    if (enable && !captureGranted) openCaptureSettings()
+  }
 
   function handleNameBlur() {
     onNameChange(name)
@@ -454,6 +483,41 @@ export default function Settings({
         </button>
         <p className="text-xs text-muted">Your PIN is stored only on this device, hashed — never in your backup file.</p>
       </div>
+
+      {isCaptureSupported() && (
+        <div className="bg-surface border hairline p-4 space-y-3">
+          <h3 className="font-display text-base flex items-center gap-1.5">
+            <BellRing size={18} className="text-emerald" strokeWidth={1.75} />
+            Read spending from notifications
+          </h3>
+          <p className="text-xs text-muted leading-relaxed">
+            Turns bank and e-wallet alerts into draft transactions you confirm on the Transactions page. Nothing is
+            added to your ledger on its own.
+          </p>
+          <label className="flex items-center gap-2 text-sm py-1 min-h-[32px]">
+            <input type="checkbox" className="w-4 h-4" checked={captureOn} onChange={(e) => handleCaptureToggle(e.target.checked)} />
+            Capture spending alerts
+          </label>
+          {captureOn && !captureGranted && (
+            <>
+              <p className="text-xs text-rust">
+                Android also needs notification access granted before anything can be read.
+              </p>
+              <button
+                onClick={openCaptureSettings}
+                className="w-full border hairline py-2.5 min-h-[44px] text-sm text-ink hover:border-emerald hover:text-emerald"
+              >
+                Open notification access settings
+              </button>
+            </>
+          )}
+          <p className="text-xs text-muted leading-relaxed">
+            Android grants this as access to all notifications — there's no way to limit it to banking apps. So
+            anything that doesn't mention an amount of money is discarded immediately and never stored, and messages
+            carrying a TAC or OTP are always skipped.
+          </p>
+        </div>
+      )}
       </section>
 
       <section className="space-y-4">

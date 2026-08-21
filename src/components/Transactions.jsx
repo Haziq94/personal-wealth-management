@@ -17,12 +17,25 @@ import { categoryIcon } from '../lib/categoryIcons'
 import { makeId } from '../lib/storage'
 import AddTransactionModal from './AddTransactionModal'
 import ReceiptViewer from './ReceiptViewer'
+import PendingReview from './PendingReview'
 
 function accountName(accounts, id) {
   return accounts.find((a) => a.id === id)?.name ?? 'account'
 }
 
-export default function Transactions({ currency, entries, accounts, categories, onAdd, onRemove, onAddCategory, onAddAccount }) {
+export default function Transactions({
+  currency,
+  entries,
+  accounts,
+  categories,
+  onAdd,
+  onRemove,
+  onAddCategory,
+  onAddAccount,
+  pending = [],
+  onConfirmPending,
+  onDiscardPending
+}) {
   const [showAdd, setShowAdd] = useState(false)
   const [addingAccount, setAddingAccount] = useState(false)
   const [newAccountName, setNewAccountName] = useState('')
@@ -51,6 +64,15 @@ export default function Transactions({ currency, entries, accounts, categories, 
 
   return (
     <div className="space-y-4 pb-20">
+      <PendingReview
+        pending={pending}
+        currency={currency}
+        accounts={accounts}
+        categories={categories}
+        onConfirm={onConfirmPending}
+        onDiscard={onDiscardPending}
+      />
+
       <div className="bg-surface border hairline">
         <div className="flex items-center gap-1.5 text-xs text-muted px-4 pt-3">
           <Wallet2 size={13} />

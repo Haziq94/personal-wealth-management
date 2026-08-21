@@ -10,6 +10,8 @@ import {
 } from 'lucide-react'
 import { loadState, saveState, exportState, importState, makeId } from './lib/storage'
 import { nowLocalISO, currentMonthKey } from './lib/finance'
+import { parseSpendNotification } from './lib/notificationParser'
+import { isCaptureSupported, takePendingNotifications, onNotificationCaptured } from './lib/notificationCapture'
 import NavBar from './components/NavBar'
 import Dashboard from './components/Dashboard'
 import Analytics from './components/Analytics'
@@ -58,6 +60,69 @@ export default function App() {
     document.addEventListener('visibilitychange', onVisibilityChange)
     return () => document.removeEventListener('visibilitychange', onVisibilityChange)
   }, [state.security?.enabled])
+
+  // Captured alerts become drafts for review, never ledger entries directly.
+  // Parsing runs inside the state updater so it always sees current accounts and
+  // categories, rather than whatever they were when the listener was attached.
+  function ingestNotification(notification) {
+    setState((s) => {
+      const draft = parseSpendNotification(notification, {
+        accounts: s.accounts,
+        categories: s.categories,
+        entries: s.entries
+      })
+      if (!draft) return s
+      // The same alert can arrive live and again from the queue on next launch.
+      const alreadyQueued = s.pending.some((p) => p.raw === draft.raw && p.date === draft.date)
+      if (alreadyQueued) return s
+      return { ...s, pending: [...s.pending, { ...draft, id: makeId() }] }
+    })
+  }
+
+  useEffect(() => {
+    if (!isCaptureSupported()) return
+    function drainQueue() {
+      takePendingNotifications().then((items) => items.forEach(ingestNotification))
+    }
+    // Anything captured while the app was closed, plus live delivery while open.
+    drainQueue()
+    const unsubscribe = onNotificationCaptured(ingestNotification)
+    function onVisible() {
+      if (document.visibilityState === 'visible') drainQueue()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      unsubscribe()
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [])
+
+  function handleConfirmPending(id, patch) {
+    setState((s) => {
+      const item = s.pending.find((p) => p.id === id)
+      if (!item) return s
+      const entry = {
+        id: makeId(),
+        type: item.type,
+        name: patch.name,
+        amount: item.amount,
+        category: patch.category,
+        date: item.date,
+        accountId: patch.accountId,
+        fromAccountId: null,
+        toAccountId: null,
+        recurring: false,
+        taxDeductible: false,
+        receiptId: null,
+        commitmentId: null
+      }
+      return { ...s, entries: [...s.entries, entry], pending: s.pending.filter((p) => p.id !== id) }
+    })
+  }
+
+  function handleDiscardPending(id) {
+    setState((s) => ({ ...s, pending: s.pending.filter((p) => p.id !== id) }))
+  }
 
   function handleNameChange(name) {
     setState((s) => ({ ...s, name }))
@@ -224,6 +289,9 @@ export default function App() {
             onRemove={handleRemoveEntry}
             onAddCategory={handleAddCategory}
             onAddAccount={handleAddAccount}
+            pending={state.pending}
+            onConfirmPending={handleConfirmPending}
+            onDiscardPending={handleDiscardPending}
           />
         )}
         {tab === 'commitments' && (

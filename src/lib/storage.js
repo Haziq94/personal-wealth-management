@@ -23,7 +23,28 @@ const DEFAULT_STATE = {
   accountTypes: [],
   payslips: [],
   commitments: [],
+  pending: [],
   security: DEFAULT_SECURITY
+}
+
+// Transactions parsed out of a bank notification, waiting to be confirmed. They
+// are not part of the ledger and are counted nowhere until the user accepts one.
+function normalizePending(pending) {
+  if (!Array.isArray(pending)) return []
+  return pending
+    .filter((p) => p && typeof p.amount === 'number' && Number.isFinite(p.amount))
+    .map((p) => ({
+      id: typeof p.id === 'string' ? p.id : makeId(),
+      type: p.type === 'income' ? 'income' : 'expense',
+      name: typeof p.name === 'string' ? p.name : '',
+      amount: p.amount,
+      currency: typeof p.currency === 'string' ? p.currency : null,
+      last4: typeof p.last4 === 'string' ? p.last4 : null,
+      accountId: typeof p.accountId === 'string' ? p.accountId : null,
+      category: typeof p.category === 'string' ? p.category : null,
+      date: normalizeDateTime(p.date),
+      raw: typeof p.raw === 'string' ? p.raw : ''
+    }))
 }
 
 function normalizeSecurity(security) {
@@ -185,7 +206,8 @@ export function loadState() {
         categories: [...DEFAULT_CATEGORIES],
         accountTypes: [],
         payslips: [],
-        commitments: []
+        commitments: [],
+        pending: []
       }
     const parsed = JSON.parse(raw)
     return {
@@ -197,6 +219,7 @@ export function loadState() {
       accountTypes: normalizeAccountTypes(parsed.accountTypes),
       payslips: normalizePayslips(parsed.payslips),
       commitments: normalizeCommitments(parsed.commitments),
+      pending: normalizePending(parsed.pending),
       security: normalizeSecurity(parsed.security)
     }
   } catch {
@@ -207,7 +230,8 @@ export function loadState() {
       categories: [...DEFAULT_CATEGORIES],
       accountTypes: [],
       payslips: [],
-      commitments: []
+      commitments: [],
+      pending: []
     }
   }
 }
@@ -221,7 +245,10 @@ export function exportState(state) {
   // left out of backups — it never needs to travel and shouldn't sit in a JSON file.
   // Receipt/payslip photos are also device-local (IndexedDB, see receiptStore.js) —
   // the receiptId pointers travel with entries/payslips, but the image bytes don't.
-  const { security, ...rest } = state
+  // `pending` is left out for the same reason: unconfirmed drafts carry the raw
+  // notification text they came from, which belongs on the device that captured
+  // it and nowhere else.
+  const { security, pending, ...rest } = state
   const payload = {
     ...rest,
     exportedAt: new Date().toISOString(),
@@ -261,7 +288,8 @@ export function importState(file) {
           categories: normalizeCategories(parsed.categories),
           accountTypes: normalizeAccountTypes(parsed.accountTypes),
           payslips: normalizePayslips(parsed.payslips),
-          commitments: normalizeCommitments(parsed.commitments)
+          commitments: normalizeCommitments(parsed.commitments),
+          pending: []
         })
       } catch {
         reject(new Error('Could not parse this file as JSON.'))
