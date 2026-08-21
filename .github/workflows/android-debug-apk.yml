@@ -65,25 +65,16 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      # Gradle auto-generates a fresh, random debug signing key on any machine
-      # where ~/.android/debug.keystore doesn't exist yet — on ephemeral CI
-      # runners that means a *different* key every run, so Android refuses to
-      # install a new APK over the last one ("signatures do not match"). This
-      # keystore is committed once and reused on every run so builds keep the
-      # same signature and install as in-place updates. It's the well-known
-      # standard debug keystore (password "android") — never used for a
-      # release/Play Store build, so there's nothing sensitive in it.
-      - name: Restore or create the persistent debug keystore
+      # android/app/build.gradle points its debug signingConfig directly at
+      # this file, so as long as it exists in the repo, every build (CI or
+      # local) signs with the same key. Only regenerated if it's ever missing.
+      - name: Ensure the persistent debug keystore exists
         run: |
-          mkdir -p ~/.android
-          if [ -f android/ci-debug.keystore ]; then
-            cp android/ci-debug.keystore ~/.android/debug.keystore
-          else
-            keytool -genkeypair -v -keystore ~/.android/debug.keystore \
+          if [ ! -f android/ci-debug.keystore ]; then
+            keytool -genkeypair -v -keystore android/ci-debug.keystore \
               -storepass android -alias androiddebugkey -keypass android \
               -keyalg RSA -keysize 2048 -validity 10000 \
               -dname "CN=Android Debug,O=Android,C=US"
-            cp ~/.android/debug.keystore android/ci-debug.keystore
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add android/ci-debug.keystore
