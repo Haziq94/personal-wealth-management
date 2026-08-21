@@ -20,6 +20,23 @@
             </intent-filter>
         </activity>
 
+        <!--
+            Reads bank/e-wallet spending alerts. Only the system may bind to it,
+            which is what the BIND_NOTIFICATION_LISTENER_SERVICE permission
+            enforces — exported="true" here means "bindable by the system", not
+            reachable by other apps. Inert until the user grants notification
+            access in system settings AND switches capture on in the app.
+        -->
+        <service
+            android:name=".WealthNotificationListener"
+            android:label="@string/app_name"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

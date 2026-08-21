@@ -286,7 +286,7 @@ export default function AddTransactionModal({ currency, categories, accounts, on
               <option value="">{accounts.length === 0 ? 'No accounts set up yet' : 'No account'}</option>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name}
+                  {a.name}{a.isCredit ? ' (credit card)' : ''}
                 </option>
               ))}
             </select>
@@ -308,7 +308,7 @@ export default function AddTransactionModal({ currency, categories, accounts, on
                 <option value="">Select account</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id} disabled={a.id === toAccountId}>
-                    {a.name}
+                    {a.name}{a.isCredit ? ' (credit card)' : ''}
                   </option>
                 ))}
               </select>
@@ -323,7 +323,7 @@ export default function AddTransactionModal({ currency, categories, accounts, on
                 <option value="">Select account</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id} disabled={a.id === fromAccountId}>
-                    {a.name}
+                    {a.name}{a.isCredit ? ' (credit card)' : ''}
                   </option>
                 ))}
               </select>

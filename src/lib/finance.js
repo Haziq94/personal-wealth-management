@@ -300,6 +300,21 @@ export function getAccountBalances(entries, accounts) {
   })
 }
 
+// A credit card is a liability, so its running balance goes negative as you
+// spend. Showing that raw would read as "-RM 500 in the account" when what it
+// actually means is "RM 500 owed" — so credit accounts are flipped to a
+// positive figure with an explicit label instead.
+export function accountBalanceView(account) {
+  if (!account.isCredit) {
+    return { amount: account.balance, label: null, tone: account.balance < 0 ? 'text-rust' : 'text-ink' }
+  }
+  return {
+    amount: Math.abs(account.balance),
+    label: account.balance > 0 ? 'in credit' : 'owed',
+    tone: account.balance < 0 ? 'text-rust' : 'text-emerald'
+  }
+}
+
 // Years worth showing in the Tax page's year picker — every year with either a
 // transaction or a payslip, plus the current year so a first-time user isn't
 // staring at an empty selector.

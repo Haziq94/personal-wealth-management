@@ -10,14 +10,23 @@ import {
   ShieldCheck,
   Fingerprint,
   Wallet2,
+  CreditCard,
+  BellRing,
   Tags,
   Plus,
   X
 } from 'lucide-react'
-import { CURRENCIES, formatMoney, getAccountBalances } from '../lib/finance'
+import { CURRENCIES, formatMoney, getAccountBalances, accountBalanceView } from '../lib/finance'
 import { isBiometricAvailable, registerBiometric } from '../lib/security'
 import { makeId } from '../lib/storage'
 import { getOtaStatus } from '../lib/otaUpdate'
+import {
+  isCaptureSupported,
+  isCapturePermissionGranted,
+  isCaptureEnabled,
+  setCaptureEnabled,
+  openCaptureSettings
+} from '../lib/notificationCapture'
 import LockScreen from './LockScreen'
 
 const NEW_TYPE = '__new__'
@@ -32,6 +41,7 @@ export default function Settings({
   onSecurityChange,
   onPinReset,
   onAddAccount,
+  onUpdateAccount,
   onRemoveAccount,
   onAddCategory,
   onRemoveCategory,
@@ -48,7 +58,11 @@ export default function Settings({
   const [newAccountType, setNewAccountType] = useState('')
   const [addingAccountType, setAddingAccountType] = useState(false)
   const [newTypeInput, setNewTypeInput] = useState('')
-  const [newAccountIsSavings, setNewAccountIsSavings] = useState(false)
+  const [newAccountKind, setNewAccountKind] = useState('cash')
+  const [newAccountLast4, setNewAccountLast4] = useState('')
+  const [last4Drafts, setLast4Drafts] = useState({})
+  const [captureGranted, setCaptureGranted] = useState(false)
+  const [captureOn, setCaptureOn] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const fileInputRef = useRef(null)
   const security = state.security ?? {}
@@ -58,6 +72,25 @@ export default function Settings({
   useEffect(() => {
     isBiometricAvailable().then(setBiometricAvailable)
   }, [])
+
+  // Notification access is granted outside the app, so this re-reads on every
+  // return to the foreground rather than trusting what it saw at mount.
+  useEffect(() => {
+    if (!isCaptureSupported()) return
+    function refresh() {
+      isCapturePermissionGranted().then(setCaptureGranted)
+      isCaptureEnabled().then(setCaptureOn)
+    }
+    refresh()
+    document.addEventListener('visibilitychange', refresh)
+    return () => document.removeEventListener('visibilitychange', refresh)
+  }, [])
+
+  async function handleCaptureToggle(enable) {
+    await setCaptureEnabled(enable)
+    setCaptureOn(enable)
+    if (enable && !captureGranted) openCaptureSettings()
+  }
 
   function handleNameBlur() {
     onNameChange(name)
@@ -74,17 +107,41 @@ export default function Settings({
     e.preventDefault()
     const trimmed = newAccountName.trim()
     if (!trimmed) return
+    const entered = parseFloat(newAccountBalance) || 0
     onAddAccount({
       id: makeId(),
       name: trimmed,
-      openingBalance: parseFloat(newAccountBalance) || 0,
+      // For a credit card the field asks what's currently owed, which is a
+      // negative running balance internally.
+      openingBalance: newAccountKind === 'credit' ? -Math.abs(entered) : entered,
       type: newAccountType || null,
-      isSavings: newAccountIsSavings
+      isSavings: newAccountKind === 'savings',
+      isCredit: newAccountKind === 'credit',
+      last4: /^\d{4}$/.test(newAccountLast4) ? newAccountLast4 : null
     })
     setNewAccountName('')
     setNewAccountBalance('')
     setNewAccountType('')
-    setNewAccountIsSavings(false)
+    setNewAccountKind('cash')
+    setNewAccountLast4('')
+  }
+
+  // Kept to 4 digits on purpose — enough to match a card against a bank alert,
+  // while never storing anything that could stand in for the real number.
+  function sanitizeLast4(value) {
+    return value.replace(/\D/g, '').slice(0, 4)
+  }
+
+  // Only a complete 4-digit value is worth storing, but half-typed input still
+  // has to stay on screen — hence a local draft alongside the saved value.
+  function last4Value(account) {
+    return last4Drafts[account.id] !== undefined ? last4Drafts[account.id] : account.last4 || ''
+  }
+
+  function handleLast4Change(id, raw) {
+    const digits = sanitizeLast4(raw)
+    setLast4Drafts((drafts) => ({ ...drafts, [id]: digits }))
+    onUpdateAccount(id, { last4: digits.length === 4 ? digits : null })
   }
 
   function handleAccountTypeSelect(value) {
@@ -139,7 +196,9 @@ export default function Settings({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <section className="space-y-4">
+        <h2 className="text-xs font-medium text-muted tracking-wide uppercase px-0.5">Profile</h2>
       <div className="bg-surface border hairline p-4 space-y-2">
         <h3 className="font-display text-base flex items-center gap-1.5">
           <UserRound size={18} className="text-emerald" strokeWidth={1.75} />
@@ -185,34 +244,59 @@ export default function Settings({
           the exchange rate at the time and it's converted to this currency automatically.
         </p>
       </div>
+      </section>
 
+      <section className="space-y-4">
+        <h2 className="text-xs font-medium text-muted tracking-wide uppercase px-0.5">Money setup</h2>
       <div className="bg-surface border hairline p-4 space-y-3">
         <h3 className="font-display text-base flex items-center gap-1.5">
           <Wallet2 size={18} className="text-emerald" strokeWidth={1.75} />
           Accounts
         </h3>
         <p className="text-xs text-muted">
-          Track balances across your bank accounts, cash and e-wallets. Mark one as a savings/investment account to
-          have it show up on the Savings &amp; Investing page too.
+          Track balances across your bank accounts, cash and e-wallets. Savings/investment accounts also show up on
+          the Savings &amp; Investing page. Credit cards work the other way round — spending on one adds to what you
+          owe instead of drawing down a balance.
         </p>
         {accountBalances.length > 0 && (
           <div className="border hairline divide-y hairline">
-            {accountBalances.map((a) => (
+            {accountBalances.map((a) => {
+              const view = accountBalanceView(a)
+              return (
               <div key={a.id} className="flex items-center justify-between px-3 py-2">
                 <div className="min-w-0">
                   <span className="text-sm">{a.name}</span>
-                  {(a.type || a.isSavings) && (
-                    <div className="text-xs text-muted">{[a.type, a.isSavings && 'Savings'].filter(Boolean).join(' · ')}</div>
-                  )}
+                  <div className="text-xs text-muted flex items-center gap-1.5 flex-wrap">
+                    {(a.type || a.isSavings || a.isCredit) && (
+                      <span>{[a.type, a.isSavings && 'Savings', a.isCredit && 'Credit card'].filter(Boolean).join(' · ')}</span>
+                    )}
+                    <span className="flex items-center gap-1">
+                      <CreditCard size={11} />
+                      ••••
+                      <input
+                        className="num w-9 border-b hairline bg-transparent text-xs py-0.5 focus:outline-none focus:border-emerald"
+                        inputMode="numeric"
+                        maxLength={4}
+                        value={last4Value(a)}
+                        placeholder="1234"
+                        aria-label={`Last 4 card digits for ${a.name}`}
+                        onChange={(e) => handleLast4Change(a.id, e.target.value)}
+                      />
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className={`num text-sm ${a.balance < 0 ? 'text-rust' : 'text-ink'}`}>{formatMoney(a.balance, state.currency)}</span>
+                  <span className={`num text-sm ${view.tone}`}>
+                    {formatMoney(view.amount, state.currency)}
+                    {view.label && <span className="text-muted"> {view.label}</span>}
+                  </span>
                   <button onClick={() => onRemoveAccount(a.id)} className="text-muted p-1 -m-1 hover:text-rust" aria-label={`Remove ${a.name}`}>
                     <X size={14} />
                   </button>
                 </div>
               </div>
-            ))}
+              )
+            })}
           </div>
         )}
         <form onSubmit={handleAddAccount} className="space-y-2">
@@ -227,7 +311,9 @@ export default function Settings({
               />
             </div>
             <div className="w-24">
-              <label className="block text-xs text-muted mb-1">Balance</label>
+              <label className="block text-xs text-muted mb-1">
+                {newAccountKind === 'credit' ? 'Owed now' : 'Balance'}
+              </label>
               <input
                 type="number"
                 inputMode="decimal"
@@ -237,6 +323,26 @@ export default function Settings({
                 placeholder="0.00"
               />
             </div>
+          </div>
+          <select
+            value={newAccountKind}
+            onChange={(e) => setNewAccountKind(e.target.value)}
+            className="w-full appearance-none border-b hairline bg-transparent py-2 text-sm focus:outline-none focus:border-emerald"
+          >
+            <option value="cash">Cash / bank account — money you hold</option>
+            <option value="savings">Savings / investment account — money you hold</option>
+            <option value="credit">Credit card — money you owe</option>
+          </select>
+          <div>
+            <label className="block text-xs text-muted mb-1">Card ends in (optional)</label>
+            <input
+              className="num w-20 border-b hairline bg-transparent py-2 text-sm focus:outline-none focus:border-emerald"
+              inputMode="numeric"
+              maxLength={4}
+              value={newAccountLast4}
+              onChange={(e) => setNewAccountLast4(sanitizeLast4(e.target.value))}
+              placeholder="1234"
+            />
           </div>
           {!addingAccountType ? (
             <select
@@ -272,15 +378,6 @@ export default function Settings({
               </button>
             </div>
           )}
-          <label className="flex items-center gap-2 text-sm py-1 min-h-[32px]">
-            <input
-              type="checkbox"
-              className="w-4 h-4"
-              checked={newAccountIsSavings}
-              onChange={(e) => setNewAccountIsSavings(e.target.checked)}
-            />
-            Savings / investment account
-          </label>
           <button
             type="submit"
             className="w-full flex items-center justify-center gap-1.5 border hairline py-2.5 min-h-[44px] text-sm text-emerald hover:border-emerald"
@@ -346,7 +443,10 @@ export default function Settings({
           </button>
         </form>
       </div>
+      </section>
 
+      <section className="space-y-4">
+        <h2 className="text-xs font-medium text-muted tracking-wide uppercase px-0.5">Security</h2>
       <div className="bg-surface border hairline p-4 space-y-3">
         <h3 className="font-display text-base flex items-center gap-1.5">
           <ShieldCheck size={18} className="text-emerald" strokeWidth={1.75} />
@@ -384,6 +484,44 @@ export default function Settings({
         <p className="text-xs text-muted">Your PIN is stored only on this device, hashed — never in your backup file.</p>
       </div>
 
+      {isCaptureSupported() && (
+        <div className="bg-surface border hairline p-4 space-y-3">
+          <h3 className="font-display text-base flex items-center gap-1.5">
+            <BellRing size={18} className="text-emerald" strokeWidth={1.75} />
+            Read spending from notifications
+          </h3>
+          <p className="text-xs text-muted leading-relaxed">
+            Turns bank and e-wallet alerts into draft transactions you confirm on the Transactions page. Nothing is
+            added to your ledger on its own.
+          </p>
+          <label className="flex items-center gap-2 text-sm py-1 min-h-[32px]">
+            <input type="checkbox" className="w-4 h-4" checked={captureOn} onChange={(e) => handleCaptureToggle(e.target.checked)} />
+            Capture spending alerts
+          </label>
+          {captureOn && !captureGranted && (
+            <>
+              <p className="text-xs text-rust">
+                Android also needs notification access granted before anything can be read.
+              </p>
+              <button
+                onClick={openCaptureSettings}
+                className="w-full border hairline py-2.5 min-h-[44px] text-sm text-ink hover:border-emerald hover:text-emerald"
+              >
+                Open notification access settings
+              </button>
+            </>
+          )}
+          <p className="text-xs text-muted leading-relaxed">
+            Android grants this as access to all notifications — there's no way to limit it to banking apps. So
+            anything that doesn't mention an amount of money is discarded immediately and never stored, and messages
+            carrying a TAC or OTP are always skipped.
+          </p>
+        </div>
+      )}
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-xs font-medium text-muted tracking-wide uppercase px-0.5">Data</h2>
       <div className="bg-surface border hairline p-4 space-y-3">
         <h3 className="font-display text-base flex items-center gap-1.5">
           <Smartphone size={18} className="text-emerald" strokeWidth={1.75} />
@@ -412,6 +550,7 @@ export default function Settings({
         </div>
         {importError && <p className="text-xs text-rust">{importError}</p>}
       </div>
+      </section>
 
       <p className="text-center text-[11px] text-muted num pb-1">Build {import.meta.env.VITE_APP_VERSION || 'dev'}</p>
       {otaStatus && (
