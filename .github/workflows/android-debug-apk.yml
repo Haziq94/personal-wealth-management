@@ -1,0 +1,108 @@
+name: Build Android debug APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [develop]
+    paths:
+      - 'android/**'
+      - 'src/**'
+      - 'public/**'
+      - 'capacitor.config.json'
+      - 'vite.config.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/android-debug-apk.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Baked into the JS bundle (both the APK and the OTA zip below) so the
+      # app can tell whether a newer web bundle is available — see
+      # src/lib/otaUpdate.js.
+      - name: Compute build version
+        run: echo "VITE_APP_VERSION=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+
+      # Builds the web app with the Capacitor base path and copies it into
+      # android/app/src/main/assets/public.
+      - name: Build web assets and sync into the Android project
+        run: npm run cap:sync
+
+      # The native shell only ships whatever JS was baked in at APK build
+      # time. Publishing that same dist/ as a zip + version manifest lets the
+      # already-installed app pull down plain JS/CSS changes on next launch
+      # without a new APK (see src/lib/otaUpdate.js) — only changes touching
+      # native code (a new plugin, Android config) still need a fresh APK.
+      # dist.zip is a standing "develop-latest" prerelease asset — that's fine
+      # for it, since it's downloaded by the native plugin's own HTTP client,
+      # not a WebView fetch(). manifest.json can't live there too: release
+      # assets don't send Access-Control-Allow-Origin, so a WebView fetch()
+      # to one is silently blocked by CORS. It's committed into the repo
+      # instead and read via raw.githubusercontent.com, which does send
+      # permissive CORS headers.
+      - name: Publish OTA bundle for the native app updater
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          (cd dist && zip -rq ../dist.zip . -x "*.map")
+          gh release view develop-latest >/dev/null 2>&1 || gh release create develop-latest --prerelease --title "OTA bundle (develop)" --notes "Auto-published by CI on every push to develop, for the app's built-in updater. Not a distributable release."
+          gh release upload develop-latest dist.zip --clobber
+
+          mkdir -p ota
+          echo "{\"version\":\"$VITE_APP_VERSION\",\"url\":\"https://github.com/${{ github.repository }}/releases/download/develop-latest/dist.zip\"}" > ota/manifest.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ota/manifest.json
+          git diff --staged --quiet || git commit -m "Update OTA manifest to $VITE_APP_VERSION"
+          git push
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      # android/app/build.gradle points its debug signingConfig directly at
+      # this file, so as long as it exists in the repo, every build (CI or
+      # local) signs with the same key. Only regenerated if it's ever missing.
+      # Verified by directly comparing the actual APK v2 signing certificate
+      # (not just log output) across consecutive builds after this fix landed.
+      - name: Ensure the persistent debug keystore exists
+        run: |
+          if [ ! -f android/ci-debug.keystore ]; then
+            keytool -genkeypair -v -keystore android/ci-debug.keystore \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add android/ci-debug.keystore
+            git commit -m "Add persistent CI debug keystore for consistent APK signing"
+            git push
+          fi
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wealth-app-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk

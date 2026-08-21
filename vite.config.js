@@ -2,8 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-export default defineConfig({
-  base: '/personal-wealth-management/',
+export default defineConfig(({ mode }) => ({
+  // The native Capacitor shell serves dist/ as its own app root, not a GitHub
+  // Pages subpath — an absolute /repo-name/ base there would 404 every asset.
+  base: mode === 'capacitor' ? '/' : '/personal-wealth-management/',
   server: {
     host: true
   },
@@ -37,4 +39,4 @@ export default defineConfig({
       }
     })
   ]
-})
+}))

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Haziq\'s Wealth</string>
+    <string name="title_activity_main">Haziq\'s Wealth</string>
+    <string name="package_name">com.haziq.wealth</string>
+    <string name="custom_url_scheme">com.haziq.wealth</string>
+</resources>

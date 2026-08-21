@@ -1,3 +1,22 @@
+import { Capacitor } from '@capacitor/core'
+import { BiometricAuth } from '@aparajita/capacitor-biometric-auth'
+
+// Inside the Capacitor Android app, content runs in an embedded WebView, not a
+// real browser tab — WebView doesn't reliably support WebAuthn's platform
+// authenticator, so biometric unlock there goes through a native plugin
+// (real Android BiometricPrompt) instead. The GitHub Pages PWA keeps using
+// WebAuthn, since that already works fine in a real mobile browser.
+const isNative = () => Capacitor.isNativePlatform()
+
+function nativeAuthOptions(name) {
+  return {
+    reason: 'Unlock your wealth data',
+    androidTitle: "Haziq's Wealth",
+    androidSubtitle: name ? `Welcome back, ${name}` : undefined,
+    allowDeviceCredential: true
+  }
+}
+
 function bytesToHex(bytes) {
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('')
 }
@@ -25,10 +44,19 @@ export async function verifyPin(pin, salt, hash) {
 }
 
 export function isBiometricSupported() {
+  if (isNative()) return true
   return typeof window !== 'undefined' && !!window.PublicKeyCredential
 }
 
 export async function isBiometricAvailable() {
+  if (isNative()) {
+    try {
+      const result = await BiometricAuth.checkBiometry()
+      return !!result.isAvailable
+    } catch {
+      return false
+    }
+  }
   if (!isBiometricSupported()) return false
   try {
     return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
@@ -37,11 +65,23 @@ export async function isBiometricAvailable() {
   }
 }
 
-// Biometric unlock is entirely local: there's no server to attest to, so the
-// challenge is just a random nonce and success means the platform authenticator
-// (fingerprint/face) verified the user — the private key never leaves secure
-// hardware, so this can't be spoofed by editing localStorage.
+// Biometric unlock is entirely local: there's no server to attest to. On the
+// web this means a WebAuthn platform authenticator (fingerprint/face) whose
+// private key never leaves secure hardware, so it can't be spoofed by editing
+// localStorage. Native Android biometric auth has no equivalent stored
+// credential — authenticate() just re-checks with the OS every time — so
+// 'native' is stored as a sentinel in place of a WebAuthn credentialId, purely
+// so security.credentialId keeps one shape regardless of platform.
 export async function registerBiometric(name = 'Haziq') {
+  if (isNative()) {
+    try {
+      await BiometricAuth.authenticate(nativeAuthOptions(name))
+    } catch {
+      throw new Error('Biometric registration was cancelled.')
+    }
+    return 'native'
+  }
+
   const cred = await navigator.credentials.create({
     publicKey: {
       challenge: crypto.getRandomValues(new Uint8Array(32)),
@@ -65,6 +105,11 @@ export async function registerBiometric(name = 'Haziq') {
 }
 
 export async function verifyBiometric(credentialId) {
+  if (isNative()) {
+    await BiometricAuth.authenticate(nativeAuthOptions())
+    return true
+  }
+
   const assertion = await navigator.credentials.get({
     publicKey: {
       challenge: crypto.getRandomValues(new Uint8Array(32)),
