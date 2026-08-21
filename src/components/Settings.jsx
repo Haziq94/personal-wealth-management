@@ -139,7 +139,9 @@ export default function Settings({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <section className="space-y-4">
+        <h2 className="text-xs font-medium text-muted tracking-wide uppercase px-0.5">Profile</h2>
       <div className="bg-surface border hairline p-4 space-y-2">
         <h3 className="font-display text-base flex items-center gap-1.5">
           <UserRound size={18} className="text-emerald" strokeWidth={1.75} />
@@ -185,7 +187,10 @@ export default function Settings({
           the exchange rate at the time and it's converted to this currency automatically.
         </p>
       </div>
+      </section>
 
+      <section className="space-y-4">
+        <h2 className="text-xs font-medium text-muted tracking-wide uppercase px-0.5">Money setup</h2>
       <div className="bg-surface border hairline p-4 space-y-3">
         <h3 className="font-display text-base flex items-center gap-1.5">
           <Wallet2 size={18} className="text-emerald" strokeWidth={1.75} />
@@ -346,7 +351,10 @@ export default function Settings({
           </button>
         </form>
       </div>
+      </section>
 
+      <section className="space-y-4">
+        <h2 className="text-xs font-medium text-muted tracking-wide uppercase px-0.5">Security</h2>
       <div className="bg-surface border hairline p-4 space-y-3">
         <h3 className="font-display text-base flex items-center gap-1.5">
           <ShieldCheck size={18} className="text-emerald" strokeWidth={1.75} />
@@ -383,7 +391,10 @@ export default function Settings({
         </button>
         <p className="text-xs text-muted">Your PIN is stored only on this device, hashed — never in your backup file.</p>
       </div>
+      </section>
 
+      <section className="space-y-4">
+        <h2 className="text-xs font-medium text-muted tracking-wide uppercase px-0.5">Data</h2>
       <div className="bg-surface border hairline p-4 space-y-3">
         <h3 className="font-display text-base flex items-center gap-1.5">
           <Smartphone size={18} className="text-emerald" strokeWidth={1.75} />
@@ -412,6 +423,7 @@ export default function Settings({
         </div>
         {importError && <p className="text-xs text-rust">{importError}</p>}
       </div>
+      </section>
 
       <p className="text-center text-[11px] text-muted num pb-1">Build {import.meta.env.VITE_APP_VERSION || 'dev'}</p>
       {otaStatus && (
