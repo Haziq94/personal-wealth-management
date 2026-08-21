@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Fingerprint,
   Wallet2,
+  CreditCard,
   Tags,
   Plus,
   X
@@ -32,6 +33,7 @@ export default function Settings({
   onSecurityChange,
   onPinReset,
   onAddAccount,
+  onUpdateAccount,
   onRemoveAccount,
   onAddCategory,
   onRemoveCategory,
@@ -49,6 +51,8 @@ export default function Settings({
   const [addingAccountType, setAddingAccountType] = useState(false)
   const [newTypeInput, setNewTypeInput] = useState('')
   const [newAccountKind, setNewAccountKind] = useState('cash')
+  const [newAccountLast4, setNewAccountLast4] = useState('')
+  const [last4Drafts, setLast4Drafts] = useState({})
   const [newCategoryName, setNewCategoryName] = useState('')
   const fileInputRef = useRef(null)
   const security = state.security ?? {}
@@ -83,12 +87,32 @@ export default function Settings({
       openingBalance: newAccountKind === 'credit' ? -Math.abs(entered) : entered,
       type: newAccountType || null,
       isSavings: newAccountKind === 'savings',
-      isCredit: newAccountKind === 'credit'
+      isCredit: newAccountKind === 'credit',
+      last4: /^\d{4}$/.test(newAccountLast4) ? newAccountLast4 : null
     })
     setNewAccountName('')
     setNewAccountBalance('')
     setNewAccountType('')
     setNewAccountKind('cash')
+    setNewAccountLast4('')
+  }
+
+  // Kept to 4 digits on purpose — enough to match a card against a bank alert,
+  // while never storing anything that could stand in for the real number.
+  function sanitizeLast4(value) {
+    return value.replace(/\D/g, '').slice(0, 4)
+  }
+
+  // Only a complete 4-digit value is worth storing, but half-typed input still
+  // has to stay on screen — hence a local draft alongside the saved value.
+  function last4Value(account) {
+    return last4Drafts[account.id] !== undefined ? last4Drafts[account.id] : account.last4 || ''
+  }
+
+  function handleLast4Change(id, raw) {
+    const digits = sanitizeLast4(raw)
+    setLast4Drafts((drafts) => ({ ...drafts, [id]: digits }))
+    onUpdateAccount(id, { last4: digits.length === 4 ? digits : null })
   }
 
   function handleAccountTypeSelect(value) {
@@ -213,11 +237,24 @@ export default function Settings({
               <div key={a.id} className="flex items-center justify-between px-3 py-2">
                 <div className="min-w-0">
                   <span className="text-sm">{a.name}</span>
-                  {(a.type || a.isSavings || a.isCredit) && (
-                    <div className="text-xs text-muted">
-                      {[a.type, a.isSavings && 'Savings', a.isCredit && 'Credit card'].filter(Boolean).join(' · ')}
-                    </div>
-                  )}
+                  <div className="text-xs text-muted flex items-center gap-1.5 flex-wrap">
+                    {(a.type || a.isSavings || a.isCredit) && (
+                      <span>{[a.type, a.isSavings && 'Savings', a.isCredit && 'Credit card'].filter(Boolean).join(' · ')}</span>
+                    )}
+                    <span className="flex items-center gap-1">
+                      <CreditCard size={11} />
+                      ••••
+                      <input
+                        className="num w-9 border-b hairline bg-transparent text-xs py-0.5 focus:outline-none focus:border-emerald"
+                        inputMode="numeric"
+                        maxLength={4}
+                        value={last4Value(a)}
+                        placeholder="1234"
+                        aria-label={`Last 4 card digits for ${a.name}`}
+                        onChange={(e) => handleLast4Change(a.id, e.target.value)}
+                      />
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <span className={`num text-sm ${view.tone}`}>
@@ -267,6 +304,17 @@ export default function Settings({
             <option value="savings">Savings / investment account — money you hold</option>
             <option value="credit">Credit card — money you owe</option>
           </select>
+          <div>
+            <label className="block text-xs text-muted mb-1">Card ends in (optional)</label>
+            <input
+              className="num w-20 border-b hairline bg-transparent py-2 text-sm focus:outline-none focus:border-emerald"
+              inputMode="numeric"
+              maxLength={4}
+              value={newAccountLast4}
+              onChange={(e) => setNewAccountLast4(sanitizeLast4(e.target.value))}
+              placeholder="1234"
+            />
+          </div>
           {!addingAccountType ? (
             <select
               value={newAccountType}

@@ -79,6 +79,10 @@ export default function App() {
     setState((s) => ({ ...s, accounts: [...s.accounts, account] }))
   }
 
+  function handleUpdateAccount(id, patch) {
+    setState((s) => ({ ...s, accounts: s.accounts.map((a) => (a.id === id ? { ...a, ...patch } : a)) }))
+  }
+
   function handleRemoveAccount(id) {
     setState((s) => ({ ...s, accounts: s.accounts.filter((a) => a.id !== id) }))
   }
@@ -266,6 +270,7 @@ export default function App() {
             onSecurityChange={handleSecurityChange}
             onPinReset={handleSecuritySetupComplete}
             onAddAccount={handleAddAccount}
+            onUpdateAccount={handleUpdateAccount}
             onRemoveAccount={handleRemoveAccount}
             onAddCategory={handleAddCategory}
             onRemoveCategory={handleRemoveCategory}

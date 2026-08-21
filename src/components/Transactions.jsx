@@ -63,7 +63,10 @@ export default function Transactions({ currency, entries, accounts, categories, 
               <div key={a.id} className="bg-surface p-3 min-w-[130px] shrink-0">
                 <div className="text-xs text-muted truncate">{a.name}</div>
                 <div className={`num text-sm ${view.tone}`}>{formatMoney(view.amount, currency)}</div>
-                {view.label && <div className="text-[10px] text-muted">{view.label}</div>}
+                <div className="text-[10px] text-muted flex items-center gap-1">
+                  {view.label}
+                  {a.last4 && <span className="num">•••• {a.last4}</span>}
+                </div>
               </div>
             )
           })}

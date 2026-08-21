@@ -61,7 +61,10 @@ function normalizeAccounts(accounts) {
       openingBalance: typeof a.openingBalance === 'number' ? a.openingBalance : 0,
       type: typeof a.type === 'string' && a.type.trim() ? a.type : null,
       isSavings: !!a.isSavings,
-      isCredit: !!a.isCredit
+      isCredit: !!a.isCredit,
+      // Last 4 digits of the card, so a bank alert naming "...1234" can be
+      // matched back to the account it belongs to. Never the full number.
+      last4: typeof a.last4 === 'string' && /^\d{4}$/.test(a.last4) ? a.last4 : null
     }))
 }
 
