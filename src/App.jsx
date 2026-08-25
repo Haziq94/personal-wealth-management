@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -8,7 +8,7 @@ import {
   BarChart3,
   ShieldCheck
 } from 'lucide-react'
-import { loadState, saveState, exportState, importState, makeId } from './lib/storage'
+import { loadState, saveState, downloadBackup, buildBackup, importState, parseBackup, makeId } from './lib/storage'
 import { nowLocalISO, currentMonthKey } from './lib/finance'
 import { parseSpendNotification } from './lib/notificationParser'
 import { isCaptureSupported, takePendingNotifications, onNotificationCaptured } from './lib/notificationCapture'
@@ -21,6 +21,11 @@ import Savings from './components/Savings'
 import Tax from './components/Tax'
 import Settings from './components/Settings'
 import LockScreen from './components/LockScreen'
+
+// How long the app can sit in the background before coming back demands the
+// PIN again. Short enough that a phone left on a table isn't left open,
+// long enough that checking another app mid-entry doesn't cost anything.
+const LOCK_GRACE_MS = 60_000
 
 const TITLES = {
   dashboard: { label: 'Dashboard', icon: LayoutDashboard },
@@ -38,6 +43,9 @@ export default function App() {
   const [importError, setImportError] = useState('')
   // Force setup when there's no PIN yet, and lock every open when a PIN exists and is enabled.
   const [locked, setLocked] = useState(() => !state.security?.pinHash || !!state.security?.enabled)
+  const lockedRef = useRef(locked)
+  // When the app was last backgrounded, or null if that session wasn't unlocked.
+  const backgroundedAt = useRef(null)
 
   const appTitle = state.name ? `${state.name}'s Wealth` : 'My Wealth'
 
@@ -49,12 +57,38 @@ export default function App() {
     document.title = appTitle
   }, [appTitle])
 
+  // The content behind the lock keeps its DOM, so a field that was focused
+  // when the app was minimized would otherwise still take keystrokes.
+  useEffect(() => {
+    if (locked) document.activeElement?.blur?.()
+  }, [locked])
+
+  // Read inside the visibility handler, which must see the value at the moment
+  // the app was backgrounded rather than whatever it was when the listener
+  // was attached.
+  useEffect(() => {
+    lockedRef.current = locked
+  }, [locked])
+
   useEffect(() => {
     function onVisibilityChange() {
-      // Re-lock the instant the app is minimized/backgrounded, not just on a
-      // fresh launch — a phone can be picked up by someone else within seconds.
+      // Still locks the instant the app is backgrounded, so nothing sensitive
+      // sits in the app switcher's preview or on screen for whoever picks the
+      // phone up next.
       if (document.visibilityState === 'hidden' && state.security?.enabled) {
+        // Only a session that was already unlocked earns the grace period —
+        // otherwise minimizing at the lock screen and coming straight back
+        // would walk right past the PIN.
+        backgroundedAt.current = lockedRef.current ? null : Date.now()
         setLocked(true)
+        return
+      }
+      // Coming back quickly is treated as never having left, so glancing at
+      // another app mid-entry doesn't cost a PIN every time.
+      if (document.visibilityState === 'visible') {
+        const leftAt = backgroundedAt.current
+        backgroundedAt.current = null
+        if (leftAt !== null && Date.now() - leftAt < LOCK_GRACE_MS) setLocked(false)
       }
     }
     document.addEventListener('visibilitychange', onVisibilityChange)
@@ -216,6 +250,13 @@ export default function App() {
     setState((s) => ({ ...s, accountTypes: s.accountTypes.filter((t) => t !== type) }))
   }
 
+  function handleRestoreText(text) {
+    // Throws on bad input so BackupModal can show the reason inline.
+    const imported = parseBackup(text)
+    setState((s) => ({ ...imported, security: s.security }))
+    setImportError('')
+  }
+
   async function handleImportFile(e) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -242,19 +283,14 @@ export default function App() {
 
   const TabIcon = TITLES[tab].icon
 
-  if (locked) {
-    return (
-      <LockScreen
-        security={state.security}
-        name={state.name}
-        onSetupComplete={handleSecuritySetupComplete}
-        onUnlock={() => setLocked(false)}
-      />
-    )
-  }
-
+  // The lock covers the app rather than replacing it. Rendering LockScreen
+  // instead of the tree used to unmount everything below it, so a half-filled
+  // transaction form was thrown away by the act of glancing at another app.
+  // `invisible` hides the content (and blocks pointer events) while leaving
+  // every component mounted with its state intact.
   return (
-    <div className="min-h-screen pb-24">
+    <>
+      <div className={`min-h-screen pb-24${locked ? ' invisible' : ''}`} aria-hidden={locked || undefined}>
       <header
         className="bg-surface border-b hairline sticky top-0 z-10"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
@@ -332,7 +368,9 @@ export default function App() {
             state={state}
             onNameChange={handleNameChange}
             onCurrencyChange={handleCurrencyChange}
-            onExport={() => exportState(state)}
+            onExport={() => downloadBackup(state)}
+            buildBackup={() => buildBackup(state)}
+            onRestoreText={handleRestoreText}
             onImport={handleImportFile}
             importError={importError}
             onSecurityChange={handleSecurityChange}
@@ -348,7 +386,20 @@ export default function App() {
         )}
       </main>
 
-      <NavBar active={tab} onChange={setTab} />
-    </div>
+        <NavBar active={tab} onChange={setTab} />
+      </div>
+
+      {locked && (
+        // Above the modals, which sit at z-50.
+        <div className="fixed inset-0 z-[60] bg-paper overflow-y-auto">
+          <LockScreen
+            security={state.security}
+            name={state.name}
+            onSetupComplete={handleSecuritySetupComplete}
+            onUnlock={() => setLocked(false)}
+          />
+        </div>
+      )}
+    </>
   )
 }

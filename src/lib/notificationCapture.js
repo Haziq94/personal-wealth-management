@@ -4,8 +4,16 @@ import { Capacitor, registerPlugin } from '@capacitor/core'
 // dependency — see android/app/src/main/java/com/haziq/wealth/.
 const NotificationCapture = registerPlugin('NotificationCapture')
 
+// Off while the native half is out of the APK. Declaring notification access in
+// the manifest is what made Play Protect block the install outright, so the
+// listener service and its plugin registration have been taken back out (they
+// are recoverable from git history). The parser, the review queue and this
+// bridge all stay — flipping this back to true and restoring the two Java
+// files is the whole job of turning the feature back on.
+const CAPTURE_ENABLED = false
+
 export function isCaptureSupported() {
-  return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
+  return CAPTURE_ENABLED && Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
 }
 
 // The system permission (granted by hand in Android settings) and the app's own

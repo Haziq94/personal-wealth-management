@@ -240,7 +240,7 @@ export function saveState(state) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
 }
 
-export function exportState(state) {
+export function buildBackup(state) {
   // security (PIN hash/salt/biometric credential) is device-local and deliberately
   // left out of backups — it never needs to travel and shouldn't sit in a JSON file.
   // Receipt/payslip photos are also device-local (IndexedDB, see receiptStore.js) —
@@ -254,16 +254,57 @@ export function exportState(state) {
     exportedAt: new Date().toISOString(),
     schema: 9
   }
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  const date = nowLocalISO().slice(0, 10)
-  a.href = url
-  a.download = `wealth-ledger-backup-${date}.json`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
+  return {
+    json: JSON.stringify(payload, null, 2),
+    filename: `wealth-ledger-backup-${nowLocalISO().slice(0, 10)}.json`
+  }
+}
+
+// Saving a Blob through a download link works in a browser but is a silent
+// no-op inside Capacitor's WebView, which has no download manager attached —
+// no file, no error. Returns whether the download was actually started, so the
+// caller can fall back to showing the text instead of appearing to do nothing.
+export function downloadBackup(state) {
+  const { json, filename } = buildBackup(state)
+  const anchor = document.createElement('a')
+  if (!('download' in anchor)) return false
+
+  const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }))
+  anchor.href = url
+  anchor.download = filename
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
   URL.revokeObjectURL(url)
+  return true
+}
+
+// Shared by both restore paths — a picked file and text pasted in by hand.
+export function parseBackup(text) {
+  let parsed
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    throw new Error('Could not read that as JSON. Make sure the whole backup was copied.')
+  }
+  if (!parsed || !Array.isArray(parsed.entries)) {
+    throw new Error('This does not look like a valid Ledger backup.')
+  }
+  // security is intentionally not restored from a backup — it stays whatever
+  // this device already has (see buildBackup). Old backups may carry a `goals`
+  // array from before Savings accounts replaced manual goals — it's simply
+  // dropped, not migrated.
+  return {
+    name: typeof parsed.name === 'string' ? parsed.name : DEFAULT_STATE.name,
+    currency: normalizeCurrency(parsed.currency),
+    entries: normalizeEntries(parsed.entries, parsed.income),
+    accounts: normalizeAccounts(parsed.accounts),
+    categories: normalizeCategories(parsed.categories),
+    accountTypes: normalizeAccountTypes(parsed.accountTypes),
+    payslips: normalizePayslips(parsed.payslips),
+    commitments: normalizeCommitments(parsed.commitments),
+    pending: []
+  }
 }
 
 export function importState(file) {
@@ -271,28 +312,9 @@ export function importState(file) {
     const reader = new FileReader()
     reader.onload = () => {
       try {
-        const parsed = JSON.parse(reader.result)
-        if (!Array.isArray(parsed.entries)) {
-          reject(new Error('This file does not look like a valid Ledger backup.'))
-          return
-        }
-        // security is intentionally not restored from a backup file — it stays
-        // whatever this device already has (see exportState). Old backups may carry
-        // a `goals` array from before Savings accounts replaced manual goals — it's
-        // simply dropped, not migrated.
-        resolve({
-          name: typeof parsed.name === 'string' ? parsed.name : DEFAULT_STATE.name,
-          currency: normalizeCurrency(parsed.currency),
-          entries: normalizeEntries(parsed.entries, parsed.income),
-          accounts: normalizeAccounts(parsed.accounts),
-          categories: normalizeCategories(parsed.categories),
-          accountTypes: normalizeAccountTypes(parsed.accountTypes),
-          payslips: normalizePayslips(parsed.payslips),
-          commitments: normalizeCommitments(parsed.commitments),
-          pending: []
-        })
-      } catch {
-        reject(new Error('Could not parse this file as JSON.'))
+        resolve(parseBackup(reader.result))
+      } catch (err) {
+        reject(err)
       }
     }
     reader.onerror = () => reject(new Error('Could not read this file.'))

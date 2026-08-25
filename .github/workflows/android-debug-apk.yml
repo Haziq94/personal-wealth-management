@@ -106,3 +106,44 @@ jobs:
         with:
           name: wealth-app-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      # A release key can't be committed the way the debug one is, since this
+      # repo is public — it comes from repository secrets instead. Until those
+      # are set the release APK is simply skipped, so CI stays green.
+      - name: Check whether a release keystore is configured
+        id: release_key
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "No RELEASE_KEYSTORE_BASE64 secret set — skipping the release APK."
+          fi
+
+      # Play Protect scores a debuggable, debug-signed APK from an unknown
+      # publisher harshly, and an app asking for notification access harder
+      # still. This build is neither debuggable nor debug-signed.
+      - name: Build signed release APK
+        if: steps.release_key.outputs.present == 'true'
+        working-directory: android
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          # Monotonic, so every build installs as an upgrade over the last.
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: ${{ env.VITE_APP_VERSION }}
+        run: |
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > release.keystore
+          export RELEASE_KEYSTORE_PATH="$PWD/release.keystore"
+          ./gradlew assembleRelease --no-daemon
+          rm -f release.keystore
+
+      - uses: actions/upload-artifact@v4
+        if: steps.release_key.outputs.present == 'true'
+        with:
+          name: wealth-app-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk

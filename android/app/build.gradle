@@ -7,8 +7,10 @@ android {
         applicationId "com.haziq.wealth"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // CI passes an ever-increasing number so each build installs as an
+        // upgrade over the last; local builds fall back to 1.
+        versionCode System.getenv("VERSION_CODE") ? System.getenv("VERSION_CODE").toInteger() : 1
+        versionName System.getenv("VERSION_NAME") ?: "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -32,14 +34,31 @@ android {
             keyAlias "androiddebugkey"
             keyPassword "android"
         }
+        // Supplied by CI from repository secrets. A release key can't be
+        // committed the way the debug one is — this repo is public — so when
+        // the env isn't set (any local build) the release APK comes out
+        // unsigned rather than falling back to some checked-in key.
+        release {
+            if (System.getenv("RELEASE_KEYSTORE_PATH")) {
+                storeFile file(System.getenv("RELEASE_KEYSTORE_PATH"))
+                storePassword System.getenv("RELEASE_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword System.getenv("RELEASE_KEY_PASSWORD")
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
+            // Play Protect weighs a debuggable, debug-signed APK heavily when
+            // scoring an unknown-publisher app — doubly so for one that asks
+            // for notification access. A proper release build drops both flags.
+            debuggable false
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig System.getenv("RELEASE_KEYSTORE_PATH") ? signingConfigs.release : null
         }
     }
 }
