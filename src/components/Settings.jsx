@@ -28,6 +28,8 @@ import {
   openCaptureSettings
 } from '../lib/notificationCapture'
 import LockScreen from './LockScreen'
+import BackupModal from './BackupModal'
+import { Capacitor } from '@capacitor/core'
 
 const NEW_TYPE = '__new__'
 
@@ -37,6 +39,8 @@ export default function Settings({
   onCurrencyChange,
   onExport,
   onImport,
+  buildBackup,
+  onRestoreText,
   importError,
   onSecurityChange,
   onPinReset,
@@ -63,6 +67,10 @@ export default function Settings({
   const [last4Drafts, setLast4Drafts] = useState({})
   const [captureGranted, setCaptureGranted] = useState(false)
   const [captureOn, setCaptureOn] = useState(false)
+  const [backupModal, setBackupModal] = useState(null)
+  // Capacitor's WebView has no download manager attached, so file saves there
+  // fail silently — those installs get the copy/paste route instead.
+  const savesAsText = Capacitor.isNativePlatform()
   const [newCategoryName, setNewCategoryName] = useState('')
   const fileInputRef = useRef(null)
   const security = state.security ?? {}
@@ -124,6 +132,22 @@ export default function Settings({
     setNewAccountType('')
     setNewAccountKind('cash')
     setNewAccountLast4('')
+  }
+
+  // Inside the native WebView there's no download manager, so a file save just
+  // silently does nothing. Backups move as text there instead.
+  function handleExport() {
+    if (savesAsText || !onExport()) setBackupModal({ mode: 'export', backup: buildBackup() })
+  }
+
+  function handleImportClick() {
+    if (savesAsText) setBackupModal({ mode: 'import', backup: null })
+    else fileInputRef.current?.click()
+  }
+
+  function handleRestoreText(text) {
+    onRestoreText(text)
+    setBackupModal(null)
   }
 
   // Kept to 4 digits on purpose — enough to match a card against a bank alert,
@@ -537,14 +561,14 @@ export default function Settings({
         </p>
         <div className="flex gap-2">
           <button
-            onClick={onExport}
+            onClick={handleExport}
             className="flex-1 flex items-center justify-center gap-1.5 border hairline py-2.5 min-h-[44px] text-sm text-ink hover:border-emerald hover:text-emerald"
           >
             <Download size={16} />
             Export
           </button>
           <button
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handleImportClick}
             className="flex-1 flex items-center justify-center gap-1.5 border hairline py-2.5 min-h-[44px] text-sm text-ink hover:border-emerald hover:text-emerald"
           >
             <Upload size={16} />
@@ -553,8 +577,22 @@ export default function Settings({
           <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={onImport} />
         </div>
         {importError && <p className="text-xs text-rust">{importError}</p>}
+        {savesAsText && (
+          <p className="text-xs text-muted leading-relaxed">
+            The app can't save files directly, so backups here are copied and pasted as text.
+          </p>
+        )}
       </div>
       </section>
+
+      {backupModal && (
+        <BackupModal
+          mode={backupModal.mode}
+          backup={backupModal.backup}
+          onRestore={handleRestoreText}
+          onClose={() => setBackupModal(null)}
+        />
+      )}
 
       <p className="text-center text-[11px] text-muted num pb-1">Build {import.meta.env.VITE_APP_VERSION || 'dev'}</p>
       {otaStatus && (

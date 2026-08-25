@@ -8,7 +8,7 @@ import {
   BarChart3,
   ShieldCheck
 } from 'lucide-react'
-import { loadState, saveState, exportState, importState, makeId } from './lib/storage'
+import { loadState, saveState, downloadBackup, buildBackup, importState, parseBackup, makeId } from './lib/storage'
 import { nowLocalISO, currentMonthKey } from './lib/finance'
 import { parseSpendNotification } from './lib/notificationParser'
 import { isCaptureSupported, takePendingNotifications, onNotificationCaptured } from './lib/notificationCapture'
@@ -250,6 +250,13 @@ export default function App() {
     setState((s) => ({ ...s, accountTypes: s.accountTypes.filter((t) => t !== type) }))
   }
 
+  function handleRestoreText(text) {
+    // Throws on bad input so BackupModal can show the reason inline.
+    const imported = parseBackup(text)
+    setState((s) => ({ ...imported, security: s.security }))
+    setImportError('')
+  }
+
   async function handleImportFile(e) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -361,7 +368,9 @@ export default function App() {
             state={state}
             onNameChange={handleNameChange}
             onCurrencyChange={handleCurrencyChange}
-            onExport={() => exportState(state)}
+            onExport={() => downloadBackup(state)}
+            buildBackup={() => buildBackup(state)}
+            onRestoreText={handleRestoreText}
             onImport={handleImportFile}
             importError={importError}
             onSecurityChange={handleSecurityChange}
