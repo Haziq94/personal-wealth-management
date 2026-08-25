@@ -49,6 +49,12 @@ export default function App() {
     document.title = appTitle
   }, [appTitle])
 
+  // The content behind the lock keeps its DOM, so a field that was focused
+  // when the app was minimized would otherwise still take keystrokes.
+  useEffect(() => {
+    if (locked) document.activeElement?.blur?.()
+  }, [locked])
+
   useEffect(() => {
     function onVisibilityChange() {
       // Re-lock the instant the app is minimized/backgrounded, not just on a
@@ -242,19 +248,14 @@ export default function App() {
 
   const TabIcon = TITLES[tab].icon
 
-  if (locked) {
-    return (
-      <LockScreen
-        security={state.security}
-        name={state.name}
-        onSetupComplete={handleSecuritySetupComplete}
-        onUnlock={() => setLocked(false)}
-      />
-    )
-  }
-
+  // The lock covers the app rather than replacing it. Rendering LockScreen
+  // instead of the tree used to unmount everything below it, so a half-filled
+  // transaction form was thrown away by the act of glancing at another app.
+  // `invisible` hides the content (and blocks pointer events) while leaving
+  // every component mounted with its state intact.
   return (
-    <div className="min-h-screen pb-24">
+    <>
+      <div className={`min-h-screen pb-24${locked ? ' invisible' : ''}`} aria-hidden={locked || undefined}>
       <header
         className="bg-surface border-b hairline sticky top-0 z-10"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
@@ -348,7 +349,20 @@ export default function App() {
         )}
       </main>
 
-      <NavBar active={tab} onChange={setTab} />
-    </div>
+        <NavBar active={tab} onChange={setTab} />
+      </div>
+
+      {locked && (
+        // Above the modals, which sit at z-50.
+        <div className="fixed inset-0 z-[60] bg-paper overflow-y-auto">
+          <LockScreen
+            security={state.security}
+            name={state.name}
+            onSetupComplete={handleSecuritySetupComplete}
+            onUnlock={() => setLocked(false)}
+          />
+        </div>
+      )}
+    </>
   )
 }
