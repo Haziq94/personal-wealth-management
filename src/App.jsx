@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -22,6 +22,11 @@ import Tax from './components/Tax'
 import Settings from './components/Settings'
 import LockScreen from './components/LockScreen'
 
+// How long the app can sit in the background before coming back demands the
+// PIN again. Short enough that a phone left on a table isn't left open,
+// long enough that checking another app mid-entry doesn't cost anything.
+const LOCK_GRACE_MS = 60_000
+
 const TITLES = {
   dashboard: { label: 'Dashboard', icon: LayoutDashboard },
   analytics: { label: 'Analytics', icon: BarChart3 },
@@ -38,6 +43,9 @@ export default function App() {
   const [importError, setImportError] = useState('')
   // Force setup when there's no PIN yet, and lock every open when a PIN exists and is enabled.
   const [locked, setLocked] = useState(() => !state.security?.pinHash || !!state.security?.enabled)
+  const lockedRef = useRef(locked)
+  // When the app was last backgrounded, or null if that session wasn't unlocked.
+  const backgroundedAt = useRef(null)
 
   const appTitle = state.name ? `${state.name}'s Wealth` : 'My Wealth'
 
@@ -55,12 +63,32 @@ export default function App() {
     if (locked) document.activeElement?.blur?.()
   }, [locked])
 
+  // Read inside the visibility handler, which must see the value at the moment
+  // the app was backgrounded rather than whatever it was when the listener
+  // was attached.
+  useEffect(() => {
+    lockedRef.current = locked
+  }, [locked])
+
   useEffect(() => {
     function onVisibilityChange() {
-      // Re-lock the instant the app is minimized/backgrounded, not just on a
-      // fresh launch — a phone can be picked up by someone else within seconds.
+      // Still locks the instant the app is backgrounded, so nothing sensitive
+      // sits in the app switcher's preview or on screen for whoever picks the
+      // phone up next.
       if (document.visibilityState === 'hidden' && state.security?.enabled) {
+        // Only a session that was already unlocked earns the grace period —
+        // otherwise minimizing at the lock screen and coming straight back
+        // would walk right past the PIN.
+        backgroundedAt.current = lockedRef.current ? null : Date.now()
         setLocked(true)
+        return
+      }
+      // Coming back quickly is treated as never having left, so glancing at
+      // another app mid-entry doesn't cost a PIN every time.
+      if (document.visibilityState === 'visible') {
+        const leftAt = backgroundedAt.current
+        backgroundedAt.current = null
+        if (leftAt !== null && Date.now() - leftAt < LOCK_GRACE_MS) setLocked(false)
       }
     }
     document.addEventListener('visibilitychange', onVisibilityChange)

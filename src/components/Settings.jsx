@@ -481,6 +481,10 @@ export default function Settings({
         >
           {security.pinHash ? 'Change PIN' : 'Set up PIN'}
         </button>
+        <p className="text-xs text-muted">
+          Re-opening within a minute won't ask again, so checking another app mid-entry costs nothing. Longer than
+          that and it locks.
+        </p>
         <p className="text-xs text-muted">Your PIN is stored only on this device, hashed — never in your backup file.</p>
       </div>
 
