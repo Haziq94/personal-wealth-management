@@ -1,5 +1,5 @@
 import { House, ShoppingBag, Landmark, Scale, ShieldAlert } from 'lucide-react'
-import { formatPct } from '../lib/finance'
+import { formatMoney, formatPct } from '../lib/finance'
 
 const LABELS = { needs: 'Commitment', wants: 'Daily Budget', emergency: 'Emergency', savings: 'Savings' }
 const CAPTIONS = {
@@ -16,23 +16,26 @@ const COLORS = {
 }
 const ICONS = { needs: House, wants: ShoppingBag, emergency: ShieldAlert, savings: Landmark }
 
-function Row({ cat, data }) {
-  const laneMax = data.target > 0 ? data.target * 1.5 : Math.max(data.pct, 0.1)
-  const barWidth = Math.min((data.pct / laneMax) * 100, 100)
-  const markerPos = data.target > 0 ? Math.min((data.target / laneMax) * 100, 100) : 0
-  const over = data.pct > data.target
+function Row({ cat, data, currency }) {
+  // Driven by amounts, not percentages — a commitment target is meaningful even
+  // before any income is logged, where a percentage-of-income view collapses to 0%.
+  const laneMax = data.targetAmount > 0 ? data.targetAmount * 1.5 : Math.max(data.spent, 1)
+  const barWidth = Math.min((data.spent / laneMax) * 100, 100)
+  const markerPos = data.targetAmount > 0 ? Math.min((data.targetAmount / laneMax) * 100, 100) : 0
+  const over = data.spent > data.targetAmount
   const Icon = ICONS[cat]
 
   return (
     <div className="py-3 border-b hairline last:border-b-0">
-      <div className="flex items-baseline justify-between mb-1.5">
-        <span className="font-body text-sm text-ink flex items-center gap-1.5">
+      <div className="flex items-baseline justify-between mb-1.5 gap-2">
+        <span className="font-body text-sm text-ink flex items-center gap-1.5 shrink-0">
           <Icon size={15} style={{ color: COLORS[cat] }} strokeWidth={1.75} />
           {LABELS[cat]}
         </span>
-        <span className="num text-sm">
-          <span className={over && cat !== 'savings' ? 'text-rust' : 'text-ink'}>{formatPct(data.pct)}</span>
-          <span className="text-muted"> / {formatPct(data.target)} target</span>
+        <span className="num text-sm text-right">
+          <span className={over && cat !== 'savings' ? 'text-rust' : 'text-ink'}>{formatMoney(data.spent, currency)}</span>
+          <span className="text-muted"> / {formatMoney(data.targetAmount, currency)}</span>
+          {data.target > 0 && <span className="text-muted"> ({formatPct(data.target)})</span>}
         </span>
       </div>
       <div className="relative h-2 bg-paper border hairline overflow-hidden">
@@ -50,7 +53,7 @@ function Row({ cat, data }) {
   )
 }
 
-export default function AllocationBar({ allocation }) {
+export default function AllocationBar({ allocation, currency }) {
   return (
     <div className="bg-surface border hairline p-4">
       <h3 className="font-display text-base mb-1 flex items-center gap-1.5">
@@ -62,7 +65,7 @@ export default function AllocationBar({ allocation }) {
         like a bonus, flows straight to Savings. Tag a transaction "Emergency" and it draws from Savings instead.
       </p>
       {Object.entries(allocation).map(([cat, data]) => (
-        <Row key={cat} cat={cat} data={data} />
+        <Row key={cat} cat={cat} data={data} currency={currency} />
       ))}
     </div>
   )
