@@ -15,6 +15,7 @@ import {
   BellRing,
   Tags,
   Plus,
+  Trash2,
   X
 } from 'lucide-react'
 import { CURRENCIES, formatMoney, getAccountBalances, accountBalanceView } from '../lib/finance'
@@ -43,6 +44,7 @@ export default function Settings({
   buildBackup,
   onRestoreText,
   onImportBajetlah,
+  onResetAll,
   importError,
   onSecurityChange,
   onPinReset,
@@ -75,6 +77,7 @@ export default function Settings({
   const [bajetlahResult, setBajetlahResult] = useState(null)
   const [bajetlahError, setBajetlahError] = useState('')
   const bajetlahInputRef = useRef(null)
+  const [confirmingReset, setConfirmingReset] = useState(false)
   // Capacitor's WebView has no download manager attached, so file saves there
   // fail silently — those installs get the copy/paste route instead.
   const savesAsText = Capacitor.isNativePlatform()
@@ -672,6 +675,46 @@ export default function Settings({
           </p>
         )}
         {bajetlahError && <p className="text-xs text-rust leading-relaxed">{bajetlahError}</p>}
+      </div>
+
+      <div className="bg-surface border hairline p-4 space-y-3">
+        <h3 className="font-display text-base flex items-center gap-1.5">
+          <Trash2 size={18} className="text-rust" strokeWidth={1.75} />
+          Reset app
+        </h3>
+        <p className="text-xs text-muted leading-relaxed">
+          Erases everything stored on this device — accounts, transactions, commitments, receipt photos, your PIN and
+          all settings — and starts fresh. This can't be undone, so export a backup first if there's anything you want
+          to keep.
+        </p>
+        {!confirmingReset ? (
+          <button
+            onClick={() => setConfirmingReset(true)}
+            className="w-full flex items-center justify-center gap-1.5 border border-rust/40 py-2.5 min-h-[44px] text-sm text-rust hover:border-rust"
+          >
+            <Trash2 size={16} />
+            Reset app &amp; clear all data
+          </button>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xs text-rust font-medium">This erases everything on this device. Are you sure?</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmingReset(false)}
+                className="flex-1 border hairline py-2.5 min-h-[44px] text-sm text-ink hover:border-emerald"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onResetAll}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-rust text-paper py-2.5 min-h-[44px] text-sm"
+              >
+                <Trash2 size={16} />
+                Erase everything
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       </section>
 

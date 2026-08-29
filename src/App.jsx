@@ -8,7 +8,7 @@ import {
   BarChart3,
   ShieldCheck
 } from 'lucide-react'
-import { loadState, saveState, downloadBackup, buildBackup, importState, parseBackup, makeId } from './lib/storage'
+import { loadState, saveState, downloadBackup, buildBackup, importState, parseBackup, resetAllData, makeId } from './lib/storage'
 import { nowLocalISO, currentMonthKey } from './lib/finance'
 import { parseSpendNotification } from './lib/notificationParser'
 import { isCaptureSupported, takePendingNotifications, onNotificationCaptured } from './lib/notificationCapture'
@@ -266,6 +266,13 @@ export default function App() {
     return counts
   }
 
+  async function handleResetAll() {
+    await resetAllData()
+    // A full reload re-runs loadState against the now-empty storage, so the app
+    // comes back to first-run defaults and the PIN-setup screen.
+    window.location.reload()
+  }
+
   async function handleImportFile(e) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -382,6 +389,7 @@ export default function App() {
             buildBackup={() => buildBackup(state)}
             onRestoreText={handleRestoreText}
             onImportBajetlah={handleImportBajetlah}
+            onResetAll={handleResetAll}
             onImport={handleImportFile}
             importError={importError}
             onSecurityChange={handleSecurityChange}
