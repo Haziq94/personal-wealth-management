@@ -83,6 +83,13 @@ function normalizeAccounts(accounts) {
       type: typeof a.type === 'string' && a.type.trim() ? a.type : null,
       isSavings: !!a.isSavings,
       isCredit: !!a.isCredit,
+      // A debt that isn't a credit card — a loan, or a buy-now-pay-later plan.
+      // Held like a credit card (a negative running balance shown as "owed"),
+      // just without the card-specific bits.
+      isLiability: !!a.isLiability,
+      // Kept out of the net-worth total — e.g. a shared account, or a loan you
+      // track for its schedule but don't want dragging the headline figure down.
+      excludeFromFunds: !!a.excludeFromFunds,
       // Last 4 digits of the card, so a bank alert naming "...1234" can be
       // matched back to the account it belongs to. Never the full number.
       last4: typeof a.last4 === 'string' && /^\d{4}$/.test(a.last4) ? a.last4 : null
@@ -127,6 +134,11 @@ function normalizeCommitments(commitments) {
       id: c.id,
       name: c.name,
       monthlyPayment: typeof c.monthlyPayment === 'number' ? c.monthlyPayment : 0,
+      // Months between payments: 1 monthly, 6 half-yearly, 12 yearly, etc. The
+      // amount above is per payment, so a half-yearly bill's monthly-equivalent
+      // cost is a sixth of it (see getCommitmentsMonthlyTotal). Older data has no
+      // interval and is monthly.
+      intervalMonths: typeof c.intervalMonths === 'number' && c.intervalMonths >= 1 ? Math.round(c.intervalMonths) : 1,
       dueDay: typeof c.dueDay === 'number' && c.dueDay >= 1 && c.dueDay <= 31 ? c.dueDay : null,
       balance: typeof c.balance === 'number' ? c.balance : null,
       category: typeof c.category === 'string' && c.category.trim() ? c.category : null,

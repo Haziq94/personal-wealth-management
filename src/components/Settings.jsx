@@ -64,6 +64,7 @@ export default function Settings({
   const [newTypeInput, setNewTypeInput] = useState('')
   const [newAccountKind, setNewAccountKind] = useState('cash')
   const [newAccountLast4, setNewAccountLast4] = useState('')
+  const [newAccountExcluded, setNewAccountExcluded] = useState(false)
   const [last4Drafts, setLast4Drafts] = useState({})
   const [captureGranted, setCaptureGranted] = useState(false)
   const [captureOn, setCaptureOn] = useState(false)
@@ -116,22 +117,33 @@ export default function Settings({
     const trimmed = newAccountName.trim()
     if (!trimmed) return
     const entered = parseFloat(newAccountBalance) || 0
+    const owed = isLiabilityKind(newAccountKind)
     onAddAccount({
       id: makeId(),
       name: trimmed,
-      // For a credit card the field asks what's currently owed, which is a
-      // negative running balance internally.
-      openingBalance: newAccountKind === 'credit' ? -Math.abs(entered) : entered,
-      type: newAccountType || null,
+      // For any debt the field asks what's currently owed, which is a negative
+      // running balance internally.
+      openingBalance: owed ? -Math.abs(entered) : entered,
+      // Loan/BNPL get a sensible default label so the account reads clearly;
+      // an explicit type still wins.
+      type: newAccountType || (newAccountKind === 'loan' ? 'Loan' : newAccountKind === 'bnpl' ? 'BNPL' : null),
       isSavings: newAccountKind === 'savings',
       isCredit: newAccountKind === 'credit',
-      last4: /^\d{4}$/.test(newAccountLast4) ? newAccountLast4 : null
+      isLiability: newAccountKind === 'loan' || newAccountKind === 'bnpl',
+      excludeFromFunds: newAccountExcluded,
+      last4: newAccountKind === 'credit' && /^\d{4}$/.test(newAccountLast4) ? newAccountLast4 : null
     })
     setNewAccountName('')
     setNewAccountBalance('')
     setNewAccountType('')
     setNewAccountKind('cash')
     setNewAccountLast4('')
+    setNewAccountExcluded(false)
+  }
+
+  // Credit card, loan and BNPL are all debts entered as an amount owed.
+  function isLiabilityKind(kind) {
+    return kind === 'credit' || kind === 'loan' || kind === 'bnpl'
   }
 
   // Inside the native WebView there's no download manager, so a file save just
@@ -291,22 +303,28 @@ export default function Settings({
                 <div className="min-w-0">
                   <span className="text-sm">{a.name}</span>
                   <div className="text-xs text-muted flex items-center gap-1.5 flex-wrap">
-                    {(a.type || a.isSavings || a.isCredit) && (
-                      <span>{[a.type, a.isSavings && 'Savings', a.isCredit && 'Credit card'].filter(Boolean).join(' · ')}</span>
+                    {(a.type || a.isSavings || a.isCredit || a.isLiability || a.excludeFromFunds) && (
+                      <span>
+                        {[a.type, a.isSavings && 'Savings', a.isCredit && !a.type && 'Credit card', a.excludeFromFunds && 'Not in net worth']
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
                     )}
-                    <span className="flex items-center gap-1">
-                      <CreditCard size={11} />
-                      ••••
-                      <input
-                        className="num w-9 border-b hairline bg-transparent text-xs py-0.5 focus:outline-none focus:border-emerald"
-                        inputMode="numeric"
-                        maxLength={4}
-                        value={last4Value(a)}
-                        placeholder="1234"
-                        aria-label={`Last 4 card digits for ${a.name}`}
-                        onChange={(e) => handleLast4Change(a.id, e.target.value)}
-                      />
-                    </span>
+                    {a.isCredit && (
+                      <span className="flex items-center gap-1">
+                        <CreditCard size={11} />
+                        ••••
+                        <input
+                          className="num w-9 border-b hairline bg-transparent text-xs py-0.5 focus:outline-none focus:border-emerald"
+                          inputMode="numeric"
+                          maxLength={4}
+                          value={last4Value(a)}
+                          placeholder="1234"
+                          aria-label={`Last 4 card digits for ${a.name}`}
+                          onChange={(e) => handleLast4Change(a.id, e.target.value)}
+                        />
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
@@ -336,7 +354,7 @@ export default function Settings({
             </div>
             <div className="w-24">
               <label className="block text-xs text-muted mb-1">
-                {newAccountKind === 'credit' ? 'Owed now' : 'Balance'}
+                {isLiabilityKind(newAccountKind) ? 'Owed now' : 'Balance'}
               </label>
               <input
                 type="number"
@@ -356,18 +374,22 @@ export default function Settings({
             <option value="cash">Cash / bank account — money you hold</option>
             <option value="savings">Savings / investment account — money you hold</option>
             <option value="credit">Credit card — money you owe</option>
+            <option value="loan">Loan — money you owe</option>
+            <option value="bnpl">Buy now, pay later — money you owe</option>
           </select>
-          <div>
-            <label className="block text-xs text-muted mb-1">Card ends in (optional)</label>
-            <input
-              className="num w-20 border-b hairline bg-transparent py-2 text-sm focus:outline-none focus:border-emerald"
-              inputMode="numeric"
-              maxLength={4}
-              value={newAccountLast4}
-              onChange={(e) => setNewAccountLast4(sanitizeLast4(e.target.value))}
-              placeholder="1234"
-            />
-          </div>
+          {newAccountKind === 'credit' && (
+            <div>
+              <label className="block text-xs text-muted mb-1">Card ends in (optional)</label>
+              <input
+                className="num w-20 border-b hairline bg-transparent py-2 text-sm focus:outline-none focus:border-emerald"
+                inputMode="numeric"
+                maxLength={4}
+                value={newAccountLast4}
+                onChange={(e) => setNewAccountLast4(sanitizeLast4(e.target.value))}
+                placeholder="1234"
+              />
+            </div>
+          )}
           {!addingAccountType ? (
             <select
               value={newAccountType}
@@ -402,6 +424,15 @@ export default function Settings({
               </button>
             </div>
           )}
+          <label className="flex items-center gap-2 text-sm py-1 min-h-[32px]">
+            <input
+              type="checkbox"
+              className="w-4 h-4"
+              checked={newAccountExcluded}
+              onChange={(e) => setNewAccountExcluded(e.target.checked)}
+            />
+            Leave out of net worth
+          </label>
           <button
             type="submit"
             className="w-full flex items-center justify-center gap-1.5 border hairline py-2.5 min-h-[44px] text-sm text-emerald hover:border-emerald"

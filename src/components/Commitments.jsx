@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { Repeat, House, CalendarClock, Trash2, Plus, Pencil, CheckCircle2, Landmark } from 'lucide-react'
-import { formatMoney, getCommitmentsTotal, isCommitmentPaidThisMonth } from '../lib/finance'
+import {
+  formatMoney,
+  getCommitmentsMonthlyTotal,
+  isCommitmentPaidThisMonth,
+  commitmentFrequencyLabel
+} from '../lib/finance'
 import AddCommitmentModal from './AddCommitmentModal'
 
 function accountName(accounts, id) {
@@ -20,7 +25,8 @@ export default function Commitments({
 }) {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
-  const total = getCommitmentsTotal(commitments)
+  const total = getCommitmentsMonthlyTotal(commitments)
+  const hasNonMonthly = commitments.some((c) => (c.intervalMonths ?? 1) !== 1)
 
   function openEdit(commitment) {
     setEditing(commitment)
@@ -46,8 +52,9 @@ export default function Commitments({
         </div>
         <div className="num text-2xl">{formatMoney(total, currency)}</div>
         <p className="text-xs text-muted mt-1">
-          Set each commitment up once, then mark it paid every period — that logs the actual expense and updates any
-          outstanding balance.
+          {hasNonMonthly
+            ? 'Longer-cycle bills (yearly, half-yearly) are spread across their months, so this is the true monthly cost. Mark each paid every period to log the actual expense.'
+            : 'Set each commitment up once, then mark it paid every period — that logs the actual expense and updates any outstanding balance.'}
         </p>
       </div>
 
@@ -69,7 +76,8 @@ export default function Commitments({
                   <div className="min-w-0">
                     <div className="text-sm truncate">{c.name}</div>
                     <div className="text-xs text-muted flex flex-wrap items-center gap-x-1.5">
-                      {c.dueDay && <span>Due on day {c.dueDay}</span>}
+                      <span>{commitmentFrequencyLabel(c)}</span>
+                      {c.dueDay && <span>· Due on day {c.dueDay}</span>}
                       {c.category && <span>· {c.category}</span>}
                       {acct && (
                         <span className="flex items-center gap-0.5">
@@ -96,10 +104,13 @@ export default function Commitments({
                 </div>
               </div>
               <div className="flex items-center justify-between mt-2">
-                <span className="num text-sm">{formatMoney(c.monthlyPayment, currency)} / mo</span>
+                <span className="num text-sm">
+                  {formatMoney(c.monthlyPayment, currency)}
+                  {(c.intervalMonths ?? 1) === 1 ? ' / mo' : ' / payment'}
+                </span>
                 {paid ? (
                   <span className="flex items-center gap-1 text-xs text-emerald">
-                    <CheckCircle2 size={13} /> Paid this month
+                    <CheckCircle2 size={13} /> {(c.intervalMonths ?? 1) === 1 ? 'Paid this month' : 'Paid, up to date'}
                   </span>
                 ) : (
                   <button

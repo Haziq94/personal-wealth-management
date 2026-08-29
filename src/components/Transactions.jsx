@@ -12,7 +12,7 @@ import {
   Camera,
   ShieldCheck
 } from 'lucide-react'
-import { formatMoney, currencySymbol, formatDateTime, getAccountBalances, accountBalanceView } from '../lib/finance'
+import { formatMoney, currencySymbol, formatDateTime, getAccountBalances, accountBalanceView, getNetWorth } from '../lib/finance'
 import { categoryIcon } from '../lib/categoryIcons'
 import { makeId } from '../lib/storage'
 import AddTransactionModal from './AddTransactionModal'
@@ -43,6 +43,7 @@ export default function Transactions({
   const [newAccountIsCredit, setNewAccountIsCredit] = useState(false)
   const [viewingReceipt, setViewingReceipt] = useState(null)
   const balances = getAccountBalances(entries, accounts)
+  const netWorth = getNetWorth(entries, accounts)
   const sorted = [...entries].reverse().sort((a, b) => (b.date || '').localeCompare(a.date || ''))
 
   function handleAddAccount(e) {
@@ -74,10 +75,25 @@ export default function Transactions({
       />
 
       <div className="bg-surface border hairline">
-        <div className="flex items-center gap-1.5 text-xs text-muted px-4 pt-3">
-          <Wallet2 size={13} />
-          Account balances
+        <div className="flex items-center justify-between gap-2 px-4 pt-3">
+          <div className="flex items-center gap-1.5 text-xs text-muted">
+            <Wallet2 size={13} />
+            Account balances
+          </div>
+          {accounts.length > 0 && (
+            <div className="text-right">
+              <div className="text-[10px] text-muted uppercase tracking-wide">Net worth</div>
+              <div className={`num text-sm ${netWorth.net < 0 ? 'text-rust' : 'text-ink'}`}>
+                {formatMoney(netWorth.net, currency)}
+              </div>
+            </div>
+          )}
         </div>
+        {netWorth.debts > 0 && (
+          <div className="num text-[11px] text-muted px-4 pt-1">
+            {formatMoney(netWorth.assets, currency)} assets − {formatMoney(netWorth.debts, currency)} owed
+          </div>
+        )}
         <div className="flex overflow-x-auto gap-px bg-ink/10 mt-2">
           {balances.map((a) => {
             const view = accountBalanceView(a)
