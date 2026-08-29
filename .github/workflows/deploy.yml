@@ -24,6 +24,11 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # Stamp the build so the "Build <sha>" line in Settings reflects the live
+      # PWA version — the way to tell whether an installed PWA has picked up a
+      # deploy yet.
+      - name: Compute build version
+        run: echo "VITE_APP_VERSION=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
       - run: npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

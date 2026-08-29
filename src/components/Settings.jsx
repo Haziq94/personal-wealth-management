@@ -655,13 +655,14 @@ export default function Settings({
           <Upload size={16} />
           {bajetlahBusy ? 'Importing…' : 'Choose Bajetlah file'}
         </button>
-        <input
-          ref={bajetlahInputRef}
-          type="file"
-          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-          className="hidden"
-          onChange={handleBajetlahFile}
-        />
+        {/*
+          No `accept` filter: Android and some Chrome builds grey out a genuine
+          .xlsx whose reported MIME type doesn't match the filter, leaving the
+          file visible but unselectable. Better to let any file be picked and
+          reject a wrong one after reading it (see readBajetlahFile), which gives
+          a clear message instead of a file that can't be tapped.
+        */}
+        <input ref={bajetlahInputRef} type="file" className="hidden" onChange={handleBajetlahFile} />
         {bajetlahResult && (
           <p className="text-xs text-emerald leading-relaxed">
             Imported {bajetlahResult.accounts} account{bajetlahResult.accounts === 1 ? '' : 's'},{' '}
