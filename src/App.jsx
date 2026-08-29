@@ -257,6 +257,15 @@ export default function App() {
     setImportError('')
   }
 
+  // Merges a Bajetlah .xlsx into the current data, entirely in the browser — the
+  // file never leaves the device. Returns a count summary for the caller to show.
+  async function handleImportBajetlah(file) {
+    const { readBajetlahFile } = await import('./lib/readBajetlahFile')
+    const { counts, ...next } = await readBajetlahFile(file, state)
+    setState((s) => ({ ...next, security: s.security }))
+    return counts
+  }
+
   async function handleImportFile(e) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -371,6 +380,7 @@ export default function App() {
             onExport={() => downloadBackup(state)}
             buildBackup={() => buildBackup(state)}
             onRestoreText={handleRestoreText}
+            onImportBajetlah={handleImportBajetlah}
             onImport={handleImportFile}
             importError={importError}
             onSecurityChange={handleSecurityChange}

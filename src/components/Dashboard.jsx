@@ -11,6 +11,7 @@ import {
   formatDateTime
 } from '../lib/finance'
 import AllocationBar from './AllocationBar'
+import InstallPrompt from './InstallPrompt'
 
 const TONE_STYLES = {
   warning: { box: 'border-rust bg-rust/5 text-rust', icon: TriangleAlert },
@@ -37,6 +38,8 @@ export default function Dashboard({ name, currency, entries, accounts, onGoToTra
         </h2>
         <p className="text-xs text-muted num">{today}</p>
       </div>
+
+      <InstallPrompt />
 
       {periodStart && (
         <div className="flex items-center gap-1.5 text-xs text-muted">

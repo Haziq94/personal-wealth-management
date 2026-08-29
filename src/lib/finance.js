@@ -300,19 +300,37 @@ export function getAccountBalances(entries, accounts) {
   })
 }
 
-// A credit card is a liability, so its running balance goes negative as you
-// spend. Showing that raw would read as "-RM 500 in the account" when what it
-// actually means is "RM 500 owed" — so credit accounts are flipped to a
-// positive figure with an explicit label instead.
+// Credit cards, loans and BNPL plans are all debts — a positive number you owe,
+// held internally as a negative running balance so the same transaction maths
+// works everywhere.
+export function isLiabilityAccount(account) {
+  return !!(account.isCredit || account.isLiability)
+}
+
+// A liability's running balance goes negative as it's drawn down. Showing that
+// raw would read as "-RM 500 in the account" when it means "RM 500 owed" — so
+// debts are flipped to a positive figure with an explicit label instead.
 export function accountBalanceView(account) {
-  if (!account.isCredit) {
+  if (!isLiabilityAccount(account)) {
     return { amount: account.balance, label: null, tone: account.balance < 0 ? 'text-rust' : 'text-ink' }
   }
   return {
     amount: Math.abs(account.balance),
+    // A card can sit in credit (overpaid); a loan going positive means the same.
     label: account.balance > 0 ? 'in credit' : 'owed',
     tone: account.balance < 0 ? 'text-rust' : 'text-emerald'
   }
+}
+
+// Net worth: what you'd have left if every account settled today — assets minus
+// debts. Accounts flagged excludeFromFunds sit outside it entirely. Liabilities
+// need no special-casing, since their balance is already negative.
+export function getNetWorth(entries, accounts) {
+  const balances = getAccountBalances(entries, accounts).filter((a) => !a.excludeFromFunds)
+  const assets = balances.filter((a) => !isLiabilityAccount(a)).reduce((sum, a) => sum + a.balance, 0)
+  const debts = balances.filter((a) => isLiabilityAccount(a)).reduce((sum, a) => sum + a.balance, 0)
+  // debts is already negative, so net is assets + debts.
+  return { assets, debts: Math.abs(debts), net: assets + debts }
 }
 
 // Years worth showing in the Tax page's year picker — every year with either a
@@ -364,10 +382,44 @@ export function currentMonthKey(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
-export function isCommitmentPaidThisMonth(commitment) {
-  return commitment.lastPaidPeriod === currentMonthKey()
+// Whole months from one "YYYY-MM" key to another — how the payment schedule is
+// measured, since a bill's cycle is calendar months regardless of pay dates.
+export function monthsBetween(fromKey, toKey = currentMonthKey()) {
+  const [fy, fm] = fromKey.split('-').map(Number)
+  const [ty, tm] = toKey.split('-').map(Number)
+  return (ty - fy) * 12 + (tm - fm)
 }
 
+const intervalOf = (commitment) => (commitment.intervalMonths >= 1 ? commitment.intervalMonths : 1)
+
+// "Handled for now" — paid recently enough that the next payment isn't due yet.
+// A monthly bill is covered only in the month it was paid; a half-yearly one
+// stays covered for six months after.
+export function isCommitmentPaidThisMonth(commitment) {
+  if (!commitment.lastPaidPeriod) return false
+  return monthsBetween(commitment.lastPaidPeriod) < intervalOf(commitment)
+}
+
+// The label a commitment's frequency reads as, e.g. "Monthly", "Every 6 months".
+export function commitmentFrequencyLabel(commitment) {
+  const n = intervalOf(commitment)
+  if (n === 1) return 'Monthly'
+  if (n === 12) return 'Yearly'
+  return `Every ${n} months`
+}
+
+// What a commitment costs per month once spread over its cycle — a RM90
+// half-yearly bill is RM15/month of standing cost. This is the honest figure to
+// total across commitments of mixed frequencies.
+export function commitmentMonthlyEquivalent(commitment) {
+  return (commitment.monthlyPayment || 0) / intervalOf(commitment)
+}
+
+export function getCommitmentsMonthlyTotal(commitments) {
+  return commitments.reduce((total, c) => total + commitmentMonthlyEquivalent(c), 0)
+}
+
+// Retained name for callers that still want the raw per-payment sum.
 export function getCommitmentsTotal(commitments) {
   return commitments.reduce((total, c) => total + (c.monthlyPayment || 0), 0)
 }

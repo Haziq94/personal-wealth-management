@@ -1,13 +1,18 @@
 import { useState } from 'react'
-import { X, Wallet, CalendarClock, Plus, Check, Tag, Landmark } from 'lucide-react'
+import { X, Wallet, CalendarClock, Plus, Check, Tag, Landmark, Repeat } from 'lucide-react'
 import { currencySymbol } from '../lib/finance'
 import { makeId } from '../lib/storage'
 
 const NEW_CATEGORY = '__new__'
 
 export default function AddCommitmentModal({ currency, categories, accounts, existing, onSave, onAddCategory, onClose }) {
+  const PRESET_INTERVALS = [1, 6, 12]
+  const existingInterval = existing?.intervalMonths ?? 1
   const [name, setName] = useState(existing?.name ?? '')
   const [monthlyPayment, setMonthlyPayment] = useState(existing?.monthlyPayment ? String(existing.monthlyPayment) : '')
+  // 'custom' keeps the free-entry box open for anything that isn't a preset.
+  const [intervalChoice, setIntervalChoice] = useState(PRESET_INTERVALS.includes(existingInterval) ? String(existingInterval) : 'custom')
+  const [customInterval, setCustomInterval] = useState(String(existingInterval))
   const [dueDay, setDueDay] = useState(existing?.dueDay ? String(existing.dueDay) : '')
   const [balance, setBalance] = useState(existing?.balance != null ? String(existing.balance) : '')
   const [category, setCategory] = useState(existing?.category ?? '')
@@ -17,6 +22,8 @@ export default function AddCommitmentModal({ currency, categories, accounts, exi
 
   const parsedPayment = parseFloat(monthlyPayment)
   const parsedDueDay = parseInt(dueDay, 10)
+  const intervalMonths = intervalChoice === 'custom' ? Math.max(parseInt(customInterval, 10) || 1, 1) : parseInt(intervalChoice, 10)
+  const isMonthly = intervalMonths === 1
   const canSubmit = name.trim() && parsedPayment > 0
 
   function handleCategorySelect(value) {
@@ -43,6 +50,7 @@ export default function AddCommitmentModal({ currency, categories, accounts, exi
       id: existing?.id ?? makeId(),
       name: name.trim(),
       monthlyPayment: parsedPayment,
+      intervalMonths,
       dueDay: parsedDueDay >= 1 && parsedDueDay <= 31 ? parsedDueDay : null,
       balance: balance.trim() !== '' && !isNaN(parseFloat(balance)) ? parseFloat(balance) : null,
       category: category || null,
@@ -79,7 +87,7 @@ export default function AddCommitmentModal({ currency, categories, accounts, exi
           <div>
             <label className="flex items-center gap-1 text-xs text-muted mb-1">
               <Wallet size={12} />
-              Monthly payment
+              {isMonthly ? 'Monthly payment' : 'Amount per payment'}
             </label>
             <div className="flex items-center gap-2">
               <span className="num text-base text-muted">{currencySymbol(currency)}</span>
@@ -109,6 +117,42 @@ export default function AddCommitmentModal({ currency, categories, accounts, exi
               placeholder="e.g. 5"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="flex items-center gap-1 text-xs text-muted mb-1">
+            <Repeat size={12} />
+            How often
+          </label>
+          <select
+            value={intervalChoice}
+            onChange={(e) => setIntervalChoice(e.target.value)}
+            className="w-full appearance-none border-b hairline bg-transparent py-2 text-base focus:outline-none focus:border-emerald"
+          >
+            <option value="1">Monthly</option>
+            <option value="6">Every 6 months</option>
+            <option value="12">Yearly</option>
+            <option value="custom">Custom…</option>
+          </select>
+          {intervalChoice === 'custom' && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-sm text-muted">Every</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min="1"
+                className="num w-16 border-b hairline bg-transparent py-2 text-base focus:outline-none focus:border-emerald"
+                value={customInterval}
+                onChange={(e) => setCustomInterval(e.target.value)}
+              />
+              <span className="text-sm text-muted">months</span>
+            </div>
+          )}
+          {!isMonthly && parsedPayment > 0 && (
+            <p className="text-xs text-muted mt-1 num">
+              ≈ {currencySymbol(currency)} {(parsedPayment / intervalMonths).toFixed(2)} / month spread across the cycle
+            </p>
+          )}
         </div>
 
         <div>

@@ -4,3 +4,8 @@ dist-ssr
 .vite
 *.local
 .DS_Store
+
+# Personal & confidential financial data — never commit real exports
+*.xlsx
+*.xls
+wealth-ledger-backup*.json
