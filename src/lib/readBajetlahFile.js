@@ -7,7 +7,14 @@ import { mapBajetlahExport } from './bajetlahImport'
 export async function readBajetlahFile(file, state) {
   const XLSX = await import('xlsx')
   const buffer = await file.arrayBuffer()
-  const book = XLSX.read(buffer, { cellDates: true })
+  let book
+  try {
+    book = XLSX.read(buffer, { cellDates: true })
+  } catch {
+    // Any file can be picked (the input has no type filter on purpose), so a
+    // non-spreadsheet lands here — say so plainly rather than leaking a parser error.
+    throw new Error("Couldn't read that as a spreadsheet. Pick your Bajetlah .xlsx export.")
+  }
 
   const sheet = (name) => {
     const ws = book.Sheets[name]

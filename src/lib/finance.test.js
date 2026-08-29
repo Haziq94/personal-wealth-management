@@ -8,6 +8,8 @@ import {
   commitmentFrequencyLabel,
   commitmentMonthlyEquivalent,
   getCommitmentsMonthlyTotal,
+  getAllocation,
+  getAllocationTargets,
   currentMonthKey
 } from './finance'
 
@@ -104,6 +106,38 @@ describe('commitment frequency', () => {
 
   it('treats a never-paid commitment as due', () => {
     expect(isCommitmentPaidThisMonth({ lastPaidPeriod: null, intervalMonths: 1 })).toBe(false)
+  })
+})
+
+describe('the Commitment budget target reflects the commitments list', () => {
+  const income = 5000
+  const commitments = [
+    { monthlyPayment: 1000, intervalMonths: 1 }, // 1000/mo
+    { monthlyPayment: 1200, intervalMonths: 6 } //  200/mo
+  ]
+
+  it('shows the standing monthly cost as the target before anything is marked paid', () => {
+    // No recurring expense entries yet — the old behaviour would have shown 0.
+    const { needs } = getAllocationTargets([], income, commitments)
+    expect(needs.amount).toBe(1200) // 1000 + 200 monthly-equivalent
+  })
+
+  it('leaves spent at zero until commitments are marked paid', () => {
+    const alloc = getAllocation([], income, commitments)
+    expect(alloc.needs.targetAmount).toBe(1200)
+    expect(alloc.needs.spent).toBe(0)
+  })
+
+  it('fills spent as commitments are paid, against the same target', () => {
+    const paid = [{ type: 'expense', amount: 1000, recurring: true }]
+    const alloc = getAllocation(paid, income, commitments)
+    expect(alloc.needs.targetAmount).toBe(1200)
+    expect(alloc.needs.spent).toBe(1000)
+  })
+
+  it('still works from recurring expenses alone when no commitments are set up', () => {
+    const paid = [{ type: 'expense', amount: 800, recurring: true }]
+    expect(getAllocationTargets(paid, income, []).needs.amount).toBe(800)
   })
 })
 

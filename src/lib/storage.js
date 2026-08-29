@@ -337,3 +337,27 @@ export function importState(file) {
 export function makeId() {
   return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
+
+// Wipes everything this app has stored on the device: the ledger and every other
+// wealth-* key (OTA status, install-prompt dismissal, and anything future),
+// plus the receipt/payslip photos in IndexedDB. Irreversible — the caller
+// confirms first and reloads after, so the app comes back to a fresh setup.
+export async function resetAllData() {
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('wealth-')) localStorage.removeItem(key)
+    }
+  } catch {
+    // localStorage unavailable — nothing to clear there.
+  }
+
+  // Receipt/payslip images live in their own IndexedDB (see receiptStore.js).
+  await new Promise((resolve) => {
+    try {
+      const req = indexedDB.deleteDatabase('wealth-receipts')
+      req.onsuccess = req.onerror = req.onblocked = () => resolve()
+    } catch {
+      resolve()
+    }
+  })
+}

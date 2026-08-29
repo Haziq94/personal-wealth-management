@@ -75,8 +75,13 @@ export function totalSpent(entries) {
   return expensesOf(entries).reduce((total, e) => total + e.amount, 0)
 }
 
-export function getAllocationTargets(entries, income) {
-  const needsAmount = getCommitments(entries).total
+export function getAllocationTargets(entries, income, commitments = []) {
+  // The Needs target is your standing monthly obligations. Prefer the commitments
+  // you've set up (their monthly-equivalent cost) so the target shows the moment a
+  // commitment is added — before it's ever marked paid. Fall back to recurring
+  // expenses already logged, for anyone who flags transactions recurring without
+  // using the Commitments page; whichever is larger wins so neither is undercounted.
+  const needsAmount = Math.max(getCommitmentsMonthlyTotal(commitments), getCommitments(entries).total)
   const balance = Math.max(income - needsAmount, 0)
   // Wants gets at most half the surplus, capped at your commitments size (a reasonable
   // lifestyle ceiling) — any surplus beyond that, including bonuses, flows to Savings.
@@ -97,8 +102,11 @@ export function getAllocationTargets(entries, income) {
 // no per-transaction tagging. Actual spend per group is derived instead: Needs is
 // exactly your commitments (that's the definition), Wants is whatever else you
 // spent, and Savings is whatever of your income is left untouched.
-export function getAllocation(entries, income) {
-  const targets = getAllocationTargets(entries, income)
+export function getAllocation(entries, income, commitments = []) {
+  const targets = getAllocationTargets(entries, income, commitments)
+  // Spent-on-needs stays the commitments actually paid this period (the recurring
+  // expense entries), so the bar fills as you mark each commitment paid against a
+  // target that already reflects the whole list.
   const needsSpent = getCommitments(entries).total
   const emergencySpent = getEmergencySpend(entries)
   const spentTotal = totalSpent(entries)
@@ -178,10 +186,10 @@ export function getSpendingHabits(entries, limit = 3, minOccurrences = 3) {
     .slice(0, limit)
 }
 
-export function getInvestmentGuidance(entries, income, currency, accounts = [], allEntries = entries, name = '') {
+export function getInvestmentGuidance(entries, income, currency, accounts = [], allEntries = entries, name = '', commitments = []) {
   const spent = totalSpent(entries)
   const remaining = income - spent
-  const targets = getAllocationTargets(entries, income)
+  const targets = getAllocationTargets(entries, income, commitments)
   const savingsRate = income > 0 ? Math.max(income - spent, 0) / income : 0
   const you = name ? `${name}, ` : ''
   const cap = (s) => (you ? s : s.charAt(0).toUpperCase() + s.slice(1))
