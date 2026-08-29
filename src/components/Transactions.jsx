@@ -6,6 +6,7 @@ import {
   Repeat,
   Receipt,
   Trash2,
+  Pencil,
   ArrowRightLeft,
   Plus,
   Wallet2,
@@ -29,6 +30,7 @@ export default function Transactions({
   accounts,
   categories,
   onAdd,
+  onUpdate,
   onRemove,
   onAddCategory,
   onAddAccount,
@@ -37,6 +39,7 @@ export default function Transactions({
   onDiscardPending
 }) {
   const [showAdd, setShowAdd] = useState(false)
+  const [editingEntry, setEditingEntry] = useState(null)
   const [addingAccount, setAddingAccount] = useState(false)
   const [newAccountName, setNewAccountName] = useState('')
   const [newAccountBalance, setNewAccountBalance] = useState('')
@@ -222,6 +225,13 @@ export default function Transactions({
                   </button>
                 )}
                 <button
+                  onClick={() => setEditingEntry(entry)}
+                  className="text-muted p-2 -m-2 hover:text-emerald"
+                  aria-label={`Edit ${entry.name}`}
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
                   onClick={() => onRemove(entry.id)}
                   className="text-muted p-2 -m-2 hover:text-rust"
                   aria-label={`Remove ${entry.name}`}
@@ -242,14 +252,18 @@ export default function Transactions({
         <Plus size={24} />
       </button>
 
-      {showAdd && (
+      {(showAdd || editingEntry) && (
         <AddTransactionModal
           currency={currency}
           categories={categories}
           accounts={accounts}
-          onAdd={onAdd}
+          initial={editingEntry}
+          onSubmit={(entry) => (editingEntry ? onUpdate(entry.id, entry) : onAdd(entry))}
           onAddCategory={onAddCategory}
-          onClose={() => setShowAdd(false)}
+          onClose={() => {
+            setShowAdd(false)
+            setEditingEntry(null)
+          }}
         />
       )}
 
