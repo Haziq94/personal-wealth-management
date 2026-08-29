@@ -4,6 +4,7 @@ import {
   Download,
   Upload,
   Smartphone,
+  FileSpreadsheet,
   Check,
   Coins,
   ChevronDown,
@@ -41,6 +42,7 @@ export default function Settings({
   onImport,
   buildBackup,
   onRestoreText,
+  onImportBajetlah,
   importError,
   onSecurityChange,
   onPinReset,
@@ -69,6 +71,10 @@ export default function Settings({
   const [captureGranted, setCaptureGranted] = useState(false)
   const [captureOn, setCaptureOn] = useState(false)
   const [backupModal, setBackupModal] = useState(null)
+  const [bajetlahBusy, setBajetlahBusy] = useState(false)
+  const [bajetlahResult, setBajetlahResult] = useState(null)
+  const [bajetlahError, setBajetlahError] = useState('')
+  const bajetlahInputRef = useRef(null)
   // Capacitor's WebView has no download manager attached, so file saves there
   // fail silently — those installs get the copy/paste route instead.
   const savesAsText = Capacitor.isNativePlatform()
@@ -160,6 +166,22 @@ export default function Settings({
   function handleRestoreText(text) {
     onRestoreText(text)
     setBackupModal(null)
+  }
+
+  async function handleBajetlahFile(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setBajetlahBusy(true)
+    setBajetlahError('')
+    setBajetlahResult(null)
+    try {
+      setBajetlahResult(await onImportBajetlah(file))
+    } catch (err) {
+      setBajetlahError(err.message || 'Could not read that file.')
+    } finally {
+      setBajetlahBusy(false)
+      e.target.value = ''
+    }
   }
 
   // Kept to 4 digits on purpose — enough to match a card against a bank alert,
@@ -613,6 +635,42 @@ export default function Settings({
             The app can't save files directly, so backups here are copied and pasted as text.
           </p>
         )}
+      </div>
+
+      <div className="bg-surface border hairline p-4 space-y-3">
+        <h3 className="font-display text-base flex items-center gap-1.5">
+          <FileSpreadsheet size={18} className="text-emerald" strokeWidth={1.75} />
+          Import from Bajetlah
+        </h3>
+        <p className="text-xs text-muted leading-relaxed">
+          Bring in your accounts, transactions and commitments from a Bajetlah <span className="num">.xlsx</span>{' '}
+          export. The file is read here on your device and never uploaded anywhere. Re-importing the same file updates
+          what's already there instead of duplicating it.
+        </p>
+        <button
+          onClick={() => bajetlahInputRef.current?.click()}
+          disabled={bajetlahBusy}
+          className="w-full flex items-center justify-center gap-1.5 border hairline py-2.5 min-h-[44px] text-sm text-ink hover:border-emerald hover:text-emerald disabled:text-muted"
+        >
+          <Upload size={16} />
+          {bajetlahBusy ? 'Importing…' : 'Choose Bajetlah file'}
+        </button>
+        <input
+          ref={bajetlahInputRef}
+          type="file"
+          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          className="hidden"
+          onChange={handleBajetlahFile}
+        />
+        {bajetlahResult && (
+          <p className="text-xs text-emerald leading-relaxed">
+            Imported {bajetlahResult.accounts} account{bajetlahResult.accounts === 1 ? '' : 's'},{' '}
+            {bajetlahResult.entries} transaction{bajetlahResult.entries === 1 ? '' : 's'} and{' '}
+            {bajetlahResult.commitments} commitment{bajetlahResult.commitments === 1 ? '' : 's'}. Asset balances build
+            from the imported transactions — set any that look off by adding an opening transaction.
+          </p>
+        )}
+        {bajetlahError && <p className="text-xs text-rust leading-relaxed">{bajetlahError}</p>}
       </div>
       </section>
 
