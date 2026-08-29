@@ -85,7 +85,7 @@ export default function Dashboard({ name, currency, entries, accounts, commitmen
         </button>
       )}
 
-      <AllocationBar allocation={allocation} />
+      <AllocationBar allocation={allocation} currency={currency} />
 
       <div className={`border p-4 ${TONE_STYLES[guidance.tone].box}`}>
         <h3 className="font-display text-sm mb-1 flex items-center gap-1.5">
