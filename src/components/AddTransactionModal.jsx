@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   X,
   ArrowUpCircle,
@@ -26,26 +26,38 @@ const TYPES = [
 
 const NEW_CATEGORY = '__new__'
 
-export default function AddTransactionModal({ currency, categories, accounts, onAdd, onAddCategory, onClose }) {
-  const [type, setType] = useState('expense')
-  const [name, setName] = useState('')
-  const [amount, setAmount] = useState('')
-  const [category, setCategory] = useState('')
+export default function AddTransactionModal({ currency, categories, accounts, onSubmit, onAddCategory, onClose, initial = null }) {
+  const editing = !!initial
+  const [type, setType] = useState(initial?.type ?? 'expense')
+  const [name, setName] = useState(initial?.name ?? '')
+  const [amount, setAmount] = useState(
+    initial ? String(initial.foreignCurrency ? initial.foreignAmount : initial.amount) : ''
+  )
+  const [category, setCategory] = useState(initial?.category ?? '')
   const [addingCategory, setAddingCategory] = useState(false)
   const [newCategory, setNewCategory] = useState('')
-  const [recurring, setRecurring] = useState(false)
-  const [txnCurrency, setTxnCurrency] = useState(currency)
-  const [rate, setRate] = useState('')
-  const [date, setDate] = useState(nowLocalISO)
-  const [accountId, setAccountId] = useState('')
-  const [fromAccountId, setFromAccountId] = useState('')
-  const [toAccountId, setToAccountId] = useState('')
-  const [taxDeductible, setTaxDeductible] = useState(false)
+  const [recurring, setRecurring] = useState(initial?.recurring ?? false)
+  const [txnCurrency, setTxnCurrency] = useState(initial?.foreignCurrency ?? currency)
+  const [rate, setRate] = useState(initial?.exchangeRate ? String(initial.exchangeRate) : '')
+  const [date, setDate] = useState(initial?.date ?? nowLocalISO)
+  const [accountId, setAccountId] = useState(initial?.accountId ?? '')
+  const [fromAccountId, setFromAccountId] = useState(initial?.fromAccountId ?? '')
+  const [toAccountId, setToAccountId] = useState(initial?.toAccountId ?? '')
+  const [taxDeductible, setTaxDeductible] = useState(initial?.taxDeductible ?? false)
+  // Kept from the original entry unless the user attaches a new photo or clears it.
+  const [existingReceiptId, setExistingReceiptId] = useState(initial?.receiptId ?? null)
   const [receiptFile, setReceiptFile] = useState(null)
   const [receiptPreview, setReceiptPreview] = useState(null)
   const [saving, setSaving] = useState(false)
 
+  // Only follow later changes to the home currency — the initial render must keep
+  // an edited foreign-currency entry's own currency, not overwrite it with home.
+  const didMount = useRef(false)
   useEffect(() => {
+    if (!didMount.current) {
+      didMount.current = true
+      return
+    }
     setTxnCurrency(currency)
   }, [currency])
 
@@ -69,6 +81,7 @@ export default function AddTransactionModal({ currency, categories, accounts, on
     if (receiptPreview) URL.revokeObjectURL(receiptPreview)
     setReceiptFile(null)
     setReceiptPreview(null)
+    setExistingReceiptId(null)
   }
 
   const isForeign = txnCurrency !== currency
@@ -101,13 +114,13 @@ export default function AddTransactionModal({ currency, categories, accounts, on
     e.preventDefault()
     if (!canSubmit || saving) return
     setSaving(true)
-    let receiptId = null
+    let receiptId = existingReceiptId
     if (receiptFile) {
       receiptId = makeId()
       await saveReceipt(receiptId, receiptFile)
     }
     const base = {
-      id: makeId(),
+      id: initial?.id ?? makeId(),
       name: name.trim(),
       amount: isForeign ? Math.round(homeAmount * 100) / 100 : parsedAmount,
       type,
@@ -121,14 +134,14 @@ export default function AddTransactionModal({ currency, categories, accounts, on
       taxDeductible: type === 'expense' && taxDeductible,
       ...(isForeign ? { foreignCurrency: txnCurrency, foreignAmount: parsedAmount, exchangeRate: parsedRate } : {})
     }
-    onAdd(base)
+    onSubmit(base)
     onClose()
   }
 
   return (
     <div className="fixed inset-0 z-50 bg-paper flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="flex items-center justify-between px-4 py-3 border-b hairline shrink-0">
-        <h2 className="font-display text-lg">Log a transaction</h2>
+        <h2 className="font-display text-lg">{editing ? 'Edit transaction' : 'Log a transaction'}</h2>
         <button type="button" onClick={onClose} className="p-2 -m-2 text-muted" aria-label="Close">
           <X size={20} />
         </button>
@@ -357,7 +370,22 @@ export default function AddTransactionModal({ currency, categories, accounts, on
             <Camera size={12} />
             Receipt (optional)
           </label>
-          {!receiptPreview ? (
+          {!receiptPreview && existingReceiptId ? (
+            <div className="flex items-center justify-between gap-2 border hairline px-3 py-2.5 text-sm text-muted">
+              <span className="flex items-center gap-1.5">
+                <Camera size={14} /> Receipt attached
+              </span>
+              <div className="flex items-center gap-1">
+                <label className="text-emerald cursor-pointer px-2 py-1">
+                  Replace
+                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleReceiptChange} />
+                </label>
+                <button type="button" onClick={clearReceipt} className="text-muted p-1 hover:text-rust" aria-label="Remove receipt">
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          ) : !receiptPreview ? (
             <label className="flex items-center justify-center gap-1.5 border hairline py-2.5 text-sm text-muted cursor-pointer">
               <Plus size={14} /> Attach photo
               <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleReceiptChange} />
@@ -382,8 +410,8 @@ export default function AddTransactionModal({ currency, categories, accounts, on
           disabled={!canSubmit || saving}
           className="w-full flex items-center justify-center gap-1.5 bg-ink text-paper py-3 min-h-[48px] text-sm font-body disabled:opacity-40"
         >
-          <Plus size={16} />
-          {saving ? 'Saving…' : `Add ${type}`}
+          {editing ? <Check size={16} /> : <Plus size={16} />}
+          {saving ? 'Saving…' : editing ? 'Save changes' : `Add ${type}`}
         </button>
       </form>
     </div>

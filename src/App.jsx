@@ -170,6 +170,10 @@ export default function App() {
     setState((s) => ({ ...s, entries: [...s.entries, entry] }))
   }
 
+  function handleUpdateEntry(id, patch) {
+    setState((s) => ({ ...s, entries: s.entries.map((e) => (e.id === id ? { ...e, ...patch } : e)) }))
+  }
+
   function handleRemoveEntry(id) {
     setState((s) => ({ ...s, entries: s.entries.filter((e) => e.id !== id) }))
   }
@@ -339,6 +343,7 @@ export default function App() {
             accounts={state.accounts}
             categories={state.categories}
             onAdd={handleAddEntry}
+            onUpdate={handleUpdateEntry}
             onRemove={handleRemoveEntry}
             onAddCategory={handleAddCategory}
             onAddAccount={handleAddAccount}

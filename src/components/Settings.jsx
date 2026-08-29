@@ -15,6 +15,7 @@ import {
   BellRing,
   Tags,
   Plus,
+  Pencil,
   Trash2,
   X
 } from 'lucide-react'
@@ -31,6 +32,7 @@ import {
 } from '../lib/notificationCapture'
 import LockScreen from './LockScreen'
 import BackupModal from './BackupModal'
+import EditAccountModal from './EditAccountModal'
 import { Capacitor } from '@capacitor/core'
 
 const NEW_TYPE = '__new__'
@@ -70,6 +72,7 @@ export default function Settings({
   const [newAccountLast4, setNewAccountLast4] = useState('')
   const [newAccountExcluded, setNewAccountExcluded] = useState(false)
   const [last4Drafts, setLast4Drafts] = useState({})
+  const [editingAccount, setEditingAccount] = useState(null)
   const [captureGranted, setCaptureGranted] = useState(false)
   const [captureOn, setCaptureOn] = useState(false)
   const [backupModal, setBackupModal] = useState(null)
@@ -357,6 +360,9 @@ export default function Settings({
                     {formatMoney(view.amount, state.currency)}
                     {view.label && <span className="text-muted"> {view.label}</span>}
                   </span>
+                  <button onClick={() => setEditingAccount(a)} className="text-muted p-1 -m-1 hover:text-emerald" aria-label={`Edit ${a.name}`}>
+                    <Pencil size={14} />
+                  </button>
                   <button onClick={() => onRemoveAccount(a.id)} className="text-muted p-1 -m-1 hover:text-rust" aria-label={`Remove ${a.name}`}>
                     <X size={14} />
                   </button>
@@ -717,6 +723,16 @@ export default function Settings({
         )}
       </div>
       </section>
+
+      {editingAccount && (
+        <EditAccountModal
+          account={editingAccount}
+          accountTypes={state.accountTypes}
+          onSave={onUpdateAccount}
+          onAddAccountType={onAddAccountType}
+          onClose={() => setEditingAccount(null)}
+        />
+      )}
 
       {backupModal && (
         <BackupModal
