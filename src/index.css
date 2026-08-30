@@ -50,6 +50,16 @@
   button {
     -webkit-tap-highlight-color: transparent;
   }
+  /* Native dropdowns render their own popup, which otherwise ignores the dark
+     theme and shows white with low-contrast gray text. Pin the option list to
+     the theme's surface/ink so it stays readable in both light and dark. */
+  select {
+    color: rgb(var(--color-ink));
+  }
+  option {
+    background-color: rgb(var(--color-surface));
+    color: rgb(var(--color-ink));
+  }
 }
 
 @layer utilities {
