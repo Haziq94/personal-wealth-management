@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
 import App from './App.jsx'
 import { initAutoUpdate } from './lib/otaUpdate'
+import { setSwRegistration } from './lib/appUpdate'
 import './index.css'
 
 initAutoUpdate()
@@ -20,6 +21,7 @@ registerSW({
   immediate: true,
   onRegisteredSW(swUrl, registration) {
     if (!registration) return
+    setSwRegistration(registration)
     registration.update()
     setInterval(() => registration.update(), 60 * 1000)
     document.addEventListener('visibilitychange', () => {

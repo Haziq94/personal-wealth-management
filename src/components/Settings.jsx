@@ -17,12 +17,14 @@ import {
   Plus,
   Pencil,
   Trash2,
+  RefreshCw,
   X
 } from 'lucide-react'
 import { CURRENCIES, formatMoney, getAccountBalances, accountBalanceView } from '../lib/finance'
 import { isBiometricAvailable, registerBiometric } from '../lib/security'
 import { makeId } from '../lib/storage'
 import { getOtaStatus } from '../lib/otaUpdate'
+import { checkForUpdate } from '../lib/appUpdate'
 import {
   isCaptureSupported,
   isCapturePermissionGranted,
@@ -81,6 +83,8 @@ export default function Settings({
   const [bajetlahError, setBajetlahError] = useState('')
   const bajetlahInputRef = useRef(null)
   const [confirmingReset, setConfirmingReset] = useState(false)
+  // idle | checking | current | updating | unsupported
+  const [updateState, setUpdateState] = useState('idle')
   // Capacitor's WebView has no download manager attached, so file saves there
   // fail silently — those installs get the copy/paste route instead.
   const savesAsText = Capacitor.isNativePlatform()
@@ -117,6 +121,15 @@ export default function Settings({
     onNameChange(name)
     setSaved(true)
     setTimeout(() => setSaved(false), 1200)
+  }
+
+  async function handleCheckUpdate() {
+    setUpdateState('checking')
+    try {
+      setUpdateState(await checkForUpdate())
+    } catch {
+      setUpdateState('current')
+    }
   }
 
   function handlePinResetComplete(patch) {
@@ -612,6 +625,34 @@ export default function Settings({
 
       <section className="space-y-4">
         <h2 className="text-xs font-medium text-muted tracking-wide uppercase px-0.5">Data</h2>
+      <div className="bg-surface border hairline p-4 space-y-3">
+        <h3 className="font-display text-base flex items-center gap-1.5">
+          <RefreshCw size={18} className="text-emerald" strokeWidth={1.75} />
+          App version
+        </h3>
+        <p className="text-xs text-muted leading-relaxed">
+          You're on build <span className="num text-ink">{import.meta.env.VITE_APP_VERSION || 'dev'}</span>. New
+          versions normally install on their own within a minute of opening the app — tap to check right now.
+        </p>
+        <button
+          onClick={handleCheckUpdate}
+          disabled={updateState === 'checking' || updateState === 'updating'}
+          className="w-full flex items-center justify-center gap-1.5 border hairline py-2.5 min-h-[44px] text-sm text-ink hover:border-emerald hover:text-emerald disabled:text-muted"
+        >
+          <RefreshCw size={16} className={updateState === 'checking' || updateState === 'updating' ? 'animate-spin' : ''} />
+          {updateState === 'checking' ? 'Checking…' : updateState === 'updating' ? 'Updating…' : 'Check for updates'}
+        </button>
+        {updateState === 'current' && (
+          <p className="text-xs text-emerald">You're on the latest version.</p>
+        )}
+        {updateState === 'updating' && (
+          <p className="text-xs text-emerald">New version found — updating and reloading…</p>
+        )}
+        {updateState === 'unsupported' && (
+          <p className="text-xs text-muted">This install updates automatically; there's nothing to check here.</p>
+        )}
+      </div>
+
       <div className="bg-surface border hairline p-4 space-y-3">
         <h3 className="font-display text-base flex items-center gap-1.5">
           <Smartphone size={18} className="text-emerald" strokeWidth={1.75} />
