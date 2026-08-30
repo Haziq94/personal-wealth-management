@@ -150,6 +150,49 @@ describe('mapping commitments', () => {
   })
 })
 
+describe('debit cards link to their bank account', () => {
+  const rows = [
+    { Account: 'Bank Rakyat', Type: 'BANK', 'Account ID': 'acc-rakyat' },
+    { Account: 'Bank Rakyat Debit Card', Type: 'DEBIT_CARD', 'Account ending': 3826, 'Account ID': 'acc-rakyat-debit' }
+  ]
+  const debitTxns = [
+    {
+      Date: '2026-08-20 12:00:00',
+      Account: 'Bank Rakyat Debit Card',
+      'Income / Expense': 'Expense',
+      'Original amount': 20,
+      Currency: 'MYR',
+      'MYR equivalent': 20,
+      Merchant: 'Grocer',
+      'Transaction ID': 'txn-debit'
+    }
+  ]
+  const result = mapBajetlahExport({ accounts: rows, transactions: debitTxns }, emptyState)
+  const byId = Object.fromEntries(result.accounts.map((a) => [a.id, a]))
+
+  it('does not create a separate account for the debit card', () => {
+    expect(byId['acc-rakyat-debit']).toBeUndefined()
+    expect(result.accounts).toHaveLength(1)
+    expect(result.counts.accounts).toBe(1)
+  })
+
+  it('writes only the card ending onto the linked bank account', () => {
+    expect(byId['acc-rakyat'].last4).toBe('3826')
+  })
+
+  it('routes a transaction on the debit card to the bank account', () => {
+    const txn = result.entries.find((e) => e.id === 'txn-debit')
+    expect(txn.accountId).toBe('acc-rakyat')
+  })
+
+  it('imports the card on its own when no bank account matches', () => {
+    const orphan = [{ Account: 'Standalone Debit', Type: 'DEBIT_CARD', 'Account ending': 1111, 'Account ID': 'acc-orphan' }]
+    const res = mapBajetlahExport({ accounts: orphan }, emptyState)
+    expect(res.accounts).toHaveLength(1)
+    expect(res.accounts[0]).toMatchObject({ id: 'acc-orphan', last4: '1111' })
+  })
+})
+
 describe('foreign currency', () => {
   it('records the original amount and rate when not in MYR', () => {
     const fx = [

@@ -143,18 +143,88 @@ function upsertById(existing, incoming) {
   return [...byId.values()]
 }
 
+function isDebitCardRow(row) {
+  return str(row['Type']).toUpperCase() === 'DEBIT_CARD'
+}
+
+// "Bank Rakyat Debit Card" → "bank rakyat", so a debit card can be matched to
+// the bank account it draws from rather than becoming its own account.
+function debitBaseName(name) {
+  return str(name)
+    .replace(/\s*[-–]?\s*(debit\s*card|debit|card)\s*$/i, '')
+    .trim()
+}
+
+// Finds the bank account a debit card belongs to: an exact match on the card's
+// base name first, else the longest existing account name that begins it.
+function matchBankAccount(debitName, accountByName) {
+  const base = debitBaseName(debitName).toLowerCase()
+  if (base && accountByName.has(base)) return accountByName.get(base)
+  const lowerDebit = str(debitName).toLowerCase()
+  let best = null
+  let bestLen = 0
+  for (const [name, account] of accountByName) {
+    if (name && name !== lowerDebit && lowerDebit.startsWith(name) && name.length > bestLen) {
+      best = account
+      bestLen = name.length
+    }
+  }
+  return best
+}
+
 export function mapBajetlahExport(sheets, state) {
   const accountRows = Array.isArray(sheets.accounts) ? sheets.accounts : []
   const transactionRows = Array.isArray(sheets.transactions) ? sheets.transactions : []
   const commitmentRows = Array.isArray(sheets.commitments) ? sheets.commitments : []
 
-  const accounts = accountRows.map(mapAccount).filter(Boolean)
+  // Debit cards aren't accounts in their own right — they spend from a bank
+  // account. Map everything else first, then fold each debit card's ending
+  // number into the bank account it belongs to.
+  const accounts = accountRows.filter((r) => !isDebitCardRow(r)).map(mapAccount).filter(Boolean)
+  let accountCreations = accounts.length
 
-  // Transactions and commitments reference accounts by name; resolve against
-  // both the incoming accounts and any that already exist.
+  const accountByName = new Map()
+  for (const a of state.accounts) accountByName.set(a.name.toLowerCase(), a)
+  for (const a of accounts) accountByName.set(a.name.toLowerCase(), a)
+
+  // Debit card name → the account id transactions on that card should point at.
+  const debitLinks = new Map()
+  for (const row of accountRows.filter(isDebitCardRow)) {
+    const debitName = str(row['Account'])
+    if (!debitName) continue
+    const last4 = toLast4(row['Account ending'])
+    const bank = matchBankAccount(debitName, accountByName)
+    if (bank) {
+      // Only the card ending is carried over to the bank account.
+      if (last4) {
+        if (accounts.includes(bank)) {
+          bank.last4 = last4
+        } else {
+          // An already-stored account: queue an updated copy so upsert overwrites
+          // it with the ending set, leaving its other fields untouched.
+          const updated = { ...bank, last4 }
+          accounts.push(updated)
+          accountByName.set(bank.name.toLowerCase(), updated)
+        }
+      }
+      debitLinks.set(debitName.toLowerCase(), bank.id)
+    } else {
+      // No bank account to attach to — import it on its own so nothing is lost.
+      const own = mapAccount(row)
+      if (own) {
+        accounts.push(own)
+        accountByName.set(own.name.toLowerCase(), own)
+        accountCreations++
+      }
+    }
+  }
+
+  // Transactions and commitments reference accounts by name; resolve against the
+  // incoming accounts, any that already exist, and each debit card's bank link.
   const accountIdByName = new Map()
   for (const a of state.accounts) accountIdByName.set(a.name.toLowerCase(), a.id)
   for (const a of accounts) accountIdByName.set(a.name.toLowerCase(), a.id)
+  for (const [debitName, bankId] of debitLinks) accountIdByName.set(debitName, bankId)
 
   const entries = transactionRows.map((r) => mapTransaction(r, accountIdByName)).filter(Boolean)
   const commitments = commitmentRows.map((r) => mapCommitment(r, accountIdByName)).filter(Boolean)
@@ -170,6 +240,6 @@ export function mapBajetlahExport(sheets, state) {
     commitments: upsertById(state.commitments, commitments),
     categories,
     accountTypes,
-    counts: { accounts: accounts.length, entries: entries.length, commitments: commitments.length }
+    counts: { accounts: accountCreations, entries: entries.length, commitments: commitments.length }
   }
 }
