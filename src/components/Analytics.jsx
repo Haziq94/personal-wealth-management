@@ -1,10 +1,52 @@
-import { BarChart3, PieChart, Repeat, Receipt } from 'lucide-react'
+import { useState } from 'react'
+import { BarChart3, PieChart, Repeat, Receipt, ShieldCheck } from 'lucide-react'
 import { getMonthlyTrend, getCategoryBreakdown, getSpendingHabits, filterRecentMonths, formatMoney, formatPct } from '../lib/finance'
 import { categoryIcon } from '../lib/categoryIcons'
+import Tax from './Tax'
 
 const MONTHS = 6
 
-export default function Analytics({ currency, entries }) {
+const VIEWS = [
+  { id: 'spending', label: 'Spending', icon: BarChart3 },
+  { id: 'tax', label: 'Tax', icon: ShieldCheck }
+]
+
+export default function Analytics({ currency, entries, payslips, onAddPayslip, onRemovePayslip }) {
+  const [view, setView] = useState('spending')
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        {VIEWS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setView(id)}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 min-h-[40px] text-sm border ${
+              view === id ? 'border-emerald text-emerald bg-emerald/5' : 'hairline text-muted'
+            }`}
+          >
+            <Icon size={15} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'tax' ? (
+        <Tax
+          currency={currency}
+          entries={entries}
+          payslips={payslips}
+          onAddPayslip={onAddPayslip}
+          onRemovePayslip={onRemovePayslip}
+        />
+      ) : (
+        <SpendingView currency={currency} entries={entries} />
+      )}
+    </div>
+  )
+}
+
+function SpendingView({ currency, entries }) {
   if (entries.length === 0) {
     return (
       <div className="bg-surface border hairline p-6 text-sm text-muted flex flex-col items-center gap-2 text-center">

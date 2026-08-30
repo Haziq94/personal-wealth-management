@@ -3,10 +3,9 @@ import {
   LayoutDashboard,
   ArrowLeftRight,
   Repeat,
-  Landmark,
+  Wallet2,
   Settings as SettingsIcon,
-  BarChart3,
-  ShieldCheck
+  BarChart3
 } from 'lucide-react'
 import { loadState, saveState, downloadBackup, buildBackup, importState, parseBackup, resetAllData, makeId } from './lib/storage'
 import { nowLocalISO, currentMonthKey } from './lib/finance'
@@ -17,8 +16,7 @@ import Dashboard from './components/Dashboard'
 import Analytics from './components/Analytics'
 import Transactions from './components/Transactions'
 import Commitments from './components/Commitments'
-import Savings from './components/Savings'
-import Tax from './components/Tax'
+import Accounts from './components/Accounts'
 import Settings from './components/Settings'
 import LockScreen from './components/LockScreen'
 
@@ -29,11 +27,10 @@ const LOCK_GRACE_MS = 60_000
 
 const TITLES = {
   dashboard: { label: 'Dashboard', icon: LayoutDashboard },
-  analytics: { label: 'Analytics', icon: BarChart3 },
+  account: { label: 'Account', icon: Wallet2 },
   transactions: { label: 'Transactions', icon: ArrowLeftRight },
   commitments: { label: 'Commitments', icon: Repeat },
-  savings: { label: 'Savings & Investing', icon: Landmark },
-  tax: { label: 'Tax', icon: ShieldCheck },
+  analytics: { label: 'Analytics', icon: BarChart3 },
   settings: { label: 'Settings', icon: SettingsIcon }
 }
 
@@ -315,12 +312,22 @@ export default function App() {
         className="bg-surface border-b hairline sticky top-0 z-10"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <div className="px-4 pt-4 pb-3">
-          <div className="text-xs text-muted tracking-wide uppercase">{appTitle}</div>
-          <h1 className="font-display text-xl flex items-center gap-2 mt-0.5">
-            <TabIcon size={20} className="text-emerald shrink-0" strokeWidth={1.75} />
-            {TITLES[tab].label}
-          </h1>
+        <div className="px-4 pt-4 pb-3 flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-xs text-muted tracking-wide uppercase">{appTitle}</div>
+            <h1 className="font-display text-xl flex items-center gap-2 mt-0.5">
+              <TabIcon size={20} className="text-emerald shrink-0" strokeWidth={1.75} />
+              {TITLES[tab].label}
+            </h1>
+          </div>
+          <button
+            onClick={() => setTab('settings')}
+            className={`shrink-0 p-2 -mr-2 -mt-1 ${tab === 'settings' ? 'text-emerald' : 'text-muted hover:text-ink'}`}
+            aria-label="Settings"
+            aria-current={tab === 'settings' ? 'page' : undefined}
+          >
+            <SettingsIcon size={22} strokeWidth={tab === 'settings' ? 2.25 : 1.75} />
+          </button>
         </div>
       </header>
 
@@ -335,7 +342,28 @@ export default function App() {
             onGoToTransactions={() => setTab('transactions')}
           />
         )}
-        {tab === 'analytics' && <Analytics currency={state.currency} entries={state.entries} />}
+        {tab === 'account' && (
+          <Accounts
+            currency={state.currency}
+            entries={state.entries}
+            accounts={state.accounts}
+            accountTypes={state.accountTypes}
+            onAddAccount={handleAddAccount}
+            onUpdateAccount={handleUpdateAccount}
+            onRemoveAccount={handleRemoveAccount}
+            onAddAccountType={handleAddAccountType}
+            onRemoveAccountType={handleRemoveAccountType}
+          />
+        )}
+        {tab === 'analytics' && (
+          <Analytics
+            currency={state.currency}
+            entries={state.entries}
+            payslips={state.payslips}
+            onAddPayslip={handleAddPayslip}
+            onRemovePayslip={handleRemovePayslip}
+          />
+        )}
         {tab === 'transactions' && (
           <Transactions
             currency={state.currency}
@@ -365,26 +393,6 @@ export default function App() {
             onAddCategory={handleAddCategory}
           />
         )}
-        {tab === 'savings' && (
-          <Savings
-            currency={state.currency}
-            entries={state.entries}
-            accounts={state.accounts}
-            accountTypes={state.accountTypes}
-            onAddAccount={handleAddAccount}
-            onRemoveAccount={handleRemoveAccount}
-            onAddAccountType={handleAddAccountType}
-          />
-        )}
-        {tab === 'tax' && (
-          <Tax
-            currency={state.currency}
-            entries={state.entries}
-            payslips={state.payslips}
-            onAddPayslip={handleAddPayslip}
-            onRemovePayslip={handleRemovePayslip}
-          />
-        )}
         {tab === 'settings' && (
           <Settings
             state={state}
@@ -399,13 +407,8 @@ export default function App() {
             importError={importError}
             onSecurityChange={handleSecurityChange}
             onPinReset={handleSecuritySetupComplete}
-            onAddAccount={handleAddAccount}
-            onUpdateAccount={handleUpdateAccount}
-            onRemoveAccount={handleRemoveAccount}
             onAddCategory={handleAddCategory}
             onRemoveCategory={handleRemoveCategory}
-            onAddAccountType={handleAddAccountType}
-            onRemoveAccountType={handleRemoveAccountType}
           />
         )}
       </main>
