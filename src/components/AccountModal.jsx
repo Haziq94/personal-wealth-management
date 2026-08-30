@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { X, Check, Wallet2 } from 'lucide-react'
+import { X, Check, Plus, Wallet2 } from 'lucide-react'
 
 const NEW_TYPE = '__new__'
 
@@ -11,6 +11,7 @@ function isLiabilityKind(kind) {
 // Recover the editable "kind" from the flags stored on an account. Loan and BNPL
 // share the isLiability flag, so the type label is what tells them apart.
 function kindOf(account) {
+  if (!account) return 'cash'
   if (account.isSavings) return 'savings'
   if (account.isCredit) return 'credit'
   if (account.isLiability) return account.type === 'BNPL' ? 'bnpl' : 'loan'
@@ -21,17 +22,20 @@ function sanitizeLast4(value) {
   return value.replace(/\D/g, '').slice(0, 4)
 }
 
-export default function EditAccountModal({ account, accountTypes, onSave, onAddAccountType, onClose }) {
-  const [name, setName] = useState(account.name)
+// Handles both adding a new account (account = null) and editing an existing one.
+// onSubmit(patch, id) — id is null when adding, so the parent creates it there.
+export default function AccountModal({ account = null, accountTypes, onSubmit, onAddAccountType, onClose }) {
+  const editing = !!account
+  const [name, setName] = useState(account?.name || '')
   const [kind, setKind] = useState(kindOf(account))
   // The stored opening balance is negative for debts; the field shows the plain
   // amount and the sign is re-applied on save.
-  const [balance, setBalance] = useState(String(Math.abs(account.openingBalance ?? 0)))
-  const [type, setType] = useState(account.type || '')
+  const [balance, setBalance] = useState(account ? String(Math.abs(account.openingBalance ?? 0)) : '')
+  const [type, setType] = useState(account?.type || '')
   const [addingType, setAddingType] = useState(false)
   const [newType, setNewType] = useState('')
-  const [last4, setLast4] = useState(account.last4 || '')
-  const [excluded, setExcluded] = useState(!!account.excludeFromFunds)
+  const [last4, setLast4] = useState(account?.last4 || '')
+  const [excluded, setExcluded] = useState(!!account?.excludeFromFunds)
 
   const owed = isLiabilityKind(kind)
 
@@ -57,16 +61,20 @@ export default function EditAccountModal({ account, accountTypes, onSave, onAddA
     const trimmed = name.trim()
     if (!trimmed) return
     const entered = parseFloat(balance) || 0
-    onSave(account.id, {
-      name: trimmed,
-      openingBalance: owed ? -Math.abs(entered) : entered,
-      type: type || (kind === 'loan' ? 'Loan' : kind === 'bnpl' ? 'BNPL' : null),
-      isSavings: kind === 'savings',
-      isCredit: kind === 'credit',
-      isLiability: kind === 'loan' || kind === 'bnpl',
-      excludeFromFunds: excluded,
-      last4: kind === 'credit' && /^\d{4}$/.test(last4) ? last4 : null
-    })
+    onSubmit(
+      {
+        name: trimmed,
+        openingBalance: owed ? -Math.abs(entered) : entered,
+        type: type || (kind === 'loan' ? 'Loan' : kind === 'bnpl' ? 'BNPL' : null),
+        isSavings: kind === 'savings',
+        isCredit: kind === 'credit',
+        isLiability: kind === 'loan' || kind === 'bnpl',
+        excludeFromFunds: excluded,
+        // Any account may carry a card ending, not just credit cards.
+        last4: /^\d{4}$/.test(last4) ? last4 : null
+      },
+      account?.id ?? null
+    )
     onClose()
   }
 
@@ -78,7 +86,7 @@ export default function EditAccountModal({ account, accountTypes, onSave, onAddA
       <div className="flex items-center justify-between px-4 py-3 border-b hairline shrink-0">
         <h2 className="font-display text-lg flex items-center gap-1.5">
           <Wallet2 size={18} className="text-emerald" strokeWidth={1.75} />
-          Edit account
+          {editing ? 'Edit account' : 'Add account'}
         </h2>
         <button type="button" onClick={onClose} className="p-2 -m-2 text-muted" aria-label="Close">
           <X size={20} />
@@ -113,7 +121,7 @@ export default function EditAccountModal({ account, accountTypes, onSave, onAddA
         </div>
 
         <div>
-          <label className="block text-xs text-muted mb-1">{owed ? 'Owed now' : 'Opening balance'}</label>
+          <label className="block text-xs text-muted mb-1">{owed ? 'Owed now' : editing ? 'Opening balance' : 'Balance'}</label>
           <input
             type="number"
             inputMode="decimal"
@@ -122,24 +130,24 @@ export default function EditAccountModal({ account, accountTypes, onSave, onAddA
             onChange={(e) => setBalance(e.target.value)}
             placeholder="0.00"
           />
-          <p className="text-xs text-muted mt-1">
-            The starting figure this account was created with. Logged transactions still adjust it from here.
-          </p>
+          {editing && (
+            <p className="text-xs text-muted mt-1">
+              The starting figure this account was created with. Logged transactions still adjust it from here.
+            </p>
+          )}
         </div>
 
-        {kind === 'credit' && (
-          <div>
-            <label className="block text-xs text-muted mb-1">Card ends in (optional)</label>
-            <input
-              className="num w-20 border-b hairline bg-transparent py-2 text-base focus:outline-none focus:border-emerald"
-              inputMode="numeric"
-              maxLength={4}
-              value={last4}
-              onChange={(e) => setLast4(sanitizeLast4(e.target.value))}
-              placeholder="1234"
-            />
-          </div>
-        )}
+        <div>
+          <label className="block text-xs text-muted mb-1">Card ends in (optional)</label>
+          <input
+            className="num w-20 border-b hairline bg-transparent py-2 text-base focus:outline-none focus:border-emerald"
+            inputMode="numeric"
+            maxLength={4}
+            value={last4}
+            onChange={(e) => setLast4(sanitizeLast4(e.target.value))}
+            placeholder="1234"
+          />
+        </div>
 
         <div>
           <label className="block text-xs text-muted mb-1">Type (optional)</label>
@@ -188,8 +196,8 @@ export default function EditAccountModal({ account, accountTypes, onSave, onAddA
           type="submit"
           className="w-full flex items-center justify-center gap-1.5 bg-ink text-paper py-3 min-h-[48px] text-sm font-body"
         >
-          <Check size={16} />
-          Save changes
+          {editing ? <Check size={16} /> : <Plus size={16} />}
+          {editing ? 'Save changes' : 'Add account'}
         </button>
       </form>
     </div>

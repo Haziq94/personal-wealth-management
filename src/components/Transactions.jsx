@@ -9,13 +9,11 @@ import {
   Pencil,
   ArrowRightLeft,
   Plus,
-  Wallet2,
   Camera,
   ShieldCheck
 } from 'lucide-react'
-import { formatMoney, currencySymbol, formatDateTime, getAccountBalances, accountBalanceView, getNetWorth } from '../lib/finance'
+import { formatMoney, currencySymbol, formatDateTime } from '../lib/finance'
 import { categoryIcon } from '../lib/categoryIcons'
-import { makeId } from '../lib/storage'
 import AddTransactionModal from './AddTransactionModal'
 import ReceiptViewer from './ReceiptViewer'
 import PendingReview from './PendingReview'
@@ -33,38 +31,14 @@ export default function Transactions({
   onUpdate,
   onRemove,
   onAddCategory,
-  onAddAccount,
   pending = [],
   onConfirmPending,
   onDiscardPending
 }) {
   const [showAdd, setShowAdd] = useState(false)
   const [editingEntry, setEditingEntry] = useState(null)
-  const [addingAccount, setAddingAccount] = useState(false)
-  const [newAccountName, setNewAccountName] = useState('')
-  const [newAccountBalance, setNewAccountBalance] = useState('')
-  const [newAccountIsCredit, setNewAccountIsCredit] = useState(false)
   const [viewingReceipt, setViewingReceipt] = useState(null)
-  const balances = getAccountBalances(entries, accounts)
-  const netWorth = getNetWorth(entries, accounts)
   const sorted = [...entries].reverse().sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-
-  function handleAddAccount(e) {
-    e.preventDefault()
-    const trimmed = newAccountName.trim()
-    if (!trimmed) return
-    const entered = parseFloat(newAccountBalance) || 0
-    onAddAccount({
-      id: makeId(),
-      name: trimmed,
-      openingBalance: newAccountIsCredit ? -Math.abs(entered) : entered,
-      isCredit: newAccountIsCredit
-    })
-    setNewAccountName('')
-    setNewAccountBalance('')
-    setNewAccountIsCredit(false)
-    setAddingAccount(false)
-  }
 
   return (
     <div className="space-y-4 pb-20">
@@ -76,89 +50,6 @@ export default function Transactions({
         onConfirm={onConfirmPending}
         onDiscard={onDiscardPending}
       />
-
-      <div className="bg-surface border hairline">
-        <div className="flex items-center justify-between gap-2 px-4 pt-3">
-          <div className="flex items-center gap-1.5 text-xs text-muted">
-            <Wallet2 size={13} />
-            Account balances
-          </div>
-          {accounts.length > 0 && (
-            <div className="text-right">
-              <div className="text-[10px] text-muted uppercase tracking-wide">Net worth</div>
-              <div className={`num text-sm ${netWorth.net < 0 ? 'text-rust' : 'text-ink'}`}>
-                {formatMoney(netWorth.net, currency)}
-              </div>
-            </div>
-          )}
-        </div>
-        {netWorth.debts > 0 && (
-          <div className="num text-[11px] text-muted px-4 pt-1">
-            {formatMoney(netWorth.assets, currency)} assets − {formatMoney(netWorth.debts, currency)} owed
-          </div>
-        )}
-        <div className="flex overflow-x-auto gap-px bg-ink/10 mt-2">
-          {balances.map((a) => {
-            const view = accountBalanceView(a)
-            return (
-              <div key={a.id} className="bg-surface p-3 min-w-[130px] shrink-0">
-                <div className="text-xs text-muted truncate">{a.name}</div>
-                <div className={`num text-sm ${view.tone}`}>{formatMoney(view.amount, currency)}</div>
-                <div className="text-[10px] text-muted flex items-center gap-1">
-                  {view.label}
-                  {a.last4 && <span className="num">•••• {a.last4}</span>}
-                </div>
-              </div>
-            )
-          })}
-          <button
-            onClick={() => setAddingAccount(true)}
-            className="bg-surface p-3 min-w-[64px] shrink-0 flex flex-col items-center justify-center text-muted hover:text-emerald"
-            aria-label="Add account"
-          >
-            <Plus size={18} />
-          </button>
-        </div>
-        {addingAccount && (
-          <form onSubmit={handleAddAccount} className="p-3 border-t hairline space-y-2">
-            <div className="flex items-end gap-2">
-              <div className="flex-1">
-                <label className="block text-xs text-muted mb-1">Account name</label>
-                <input
-                  autoFocus
-                  className="w-full border-b hairline bg-transparent py-2 text-sm focus:outline-none focus:border-emerald"
-                  value={newAccountName}
-                  onChange={(e) => setNewAccountName(e.target.value)}
-                  placeholder="e.g. Maybank"
-                />
-              </div>
-              <div className="w-24">
-                <label className="block text-xs text-muted mb-1">{newAccountIsCredit ? 'Owed now' : 'Balance'}</label>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  className="num w-full border-b hairline bg-transparent py-2 text-sm focus:outline-none focus:border-emerald"
-                  value={newAccountBalance}
-                  onChange={(e) => setNewAccountBalance(e.target.value)}
-                  placeholder="0.00"
-                />
-              </div>
-              <button type="submit" className="p-2.5 border hairline text-emerald" aria-label="Save account">
-                <Plus size={16} />
-              </button>
-            </div>
-            <label className="flex items-center gap-2 text-sm py-1 min-h-[32px]">
-              <input
-                type="checkbox"
-                className="w-4 h-4"
-                checked={newAccountIsCredit}
-                onChange={(e) => setNewAccountIsCredit(e.target.checked)}
-              />
-              Credit card — money you owe
-            </label>
-          </form>
-        )}
-      </div>
 
       <div className="bg-surface border hairline">
         {sorted.length === 0 && (

@@ -374,7 +374,6 @@ export default function App() {
             onUpdate={handleUpdateEntry}
             onRemove={handleRemoveEntry}
             onAddCategory={handleAddCategory}
-            onAddAccount={handleAddAccount}
             pending={state.pending}
             onConfirmPending={handleConfirmPending}
             onDiscardPending={handleDiscardPending}
